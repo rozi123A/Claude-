@@ -65,19 +65,22 @@ export default function AdsgramApp() {
           return;
         }
 
-        // Fetch user data from server
-        const response = await fetch("/api/telegram.getUser", {
+        // Fetch user data from server using tRPC
+        const response = await fetch("/api/trpc/telegram.getUser?batch=1", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            telegramId: telegramUser.id,
-            initData: initData,
+            "0": {
+              telegramId: telegramUser.id,
+              initData: initData,
+            }
           }),
         });
 
-        const data = await response.json();
+        const batchData = await response.json();
+        const data = batchData[0]?.result?.data;
         if (data.success && data.user) {
           setUser(data.user);
         } else {

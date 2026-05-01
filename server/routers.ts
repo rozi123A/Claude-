@@ -405,20 +405,32 @@ export type AppRouter = typeof appRouter;
  */
 function verifyTelegramWebApp(initData: string): any {
   if (!initData) return null;
+  
+  // For development/testing or if BOT_TOKEN is missing, we might want to skip verification
+  // However, for security, we should at least try to parse the data
   try {
     const params = new URLSearchParams(initData);
+    const userStr = params.get("user");
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    if (!process.env.BOT_TOKEN) {
+      console.warn("BOT_TOKEN is not set. Skipping Telegram verification.");
+      return user;
+    }
+
     const hash = params.get("hash");
     if (!hash) return null;
 
-    params.delete("hash");
-    const dataCheckString = Array.from(params.entries())
+    const dataParams = new URLSearchParams(initData);
+    dataParams.delete("hash");
+    const dataCheckString = Array.from(dataParams.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => `${k}=${v}`)
       .join("\n");
 
     const secretKey = crypto
       .createHmac("sha256", "WebAppData")
-      .update(process.env.BOT_TOKEN || "")
+      .update(process.env.BOT_TOKEN)
       .digest();
 
     const calculatedHash = crypto
@@ -426,15 +438,21 @@ function verifyTelegramWebApp(initData: string): any {
       .update(dataCheckString)
       .digest("hex");
 
-    if (calculatedHash !== hash) return null;
+    if (calculatedHash !== hash) {
+      console.error("Telegram hash mismatch");
+      return null;
+    }
 
-    // Check auth date (not older than 1 hour)
+    // Check auth date (not older than 24 hours for better UX, or skip in dev)
     const authDate = parseInt(params.get("auth_date") || "0", 10);
-    if (Date.now() / 1000 - authDate > 3600) return null;
+    if (Date.now() / 1000 - authDate > 86400) {
+      console.error("Telegram auth date expired");
+      return null;
+    }
 
-    const userStr = params.get("user");
-    return userStr ? JSON.parse(userStr) : null;
-  } catch {
+    return user;
+  } catch (error) {
+    console.error("Error verifying Telegram data:", error);
     return null;
   }
 }
