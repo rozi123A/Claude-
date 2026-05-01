@@ -443,6 +443,11 @@ function verifyTelegramWebApp(initData: string): any {
 
     if (calculatedHash !== hash) {
       console.error("Telegram hash mismatch. Check if BOT_TOKEN is correct.");
+      // In development, we might want to allow it if explicitly configured
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Development mode: allowing hash mismatch");
+        return user;
+      }
       return null;
     }
 

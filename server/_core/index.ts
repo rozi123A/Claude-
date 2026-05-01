@@ -8,6 +8,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { getDb } from "../db";
+import { startBot } from "../bot";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -86,6 +87,8 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    // Start Telegram Bot
+    startBot().catch(err => console.error("[Bot] Error starting bot:", err));
   });
 }
 
