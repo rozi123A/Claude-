@@ -110,14 +110,31 @@ export async function upsertTelegramUser(user: InsertTelegramUser) {
   if (!db) return undefined;
 
   try {
+    const updateSet: any = {
+      updatedAt: new Date(),
+    };
+
+    // Update profile fields
+    if (user.username !== undefined) updateSet.username = user.username;
+    if (user.firstName !== undefined) updateSet.firstName = user.firstName;
+    if (user.lastName !== undefined) updateSet.lastName = user.lastName;
+    if (user.photoUrl !== undefined) updateSet.photoUrl = user.photoUrl;
+
+    // Update balance and earnings
+    if (user.balance !== undefined) updateSet.balance = user.balance;
+    if (user.totalEarned !== undefined) updateSet.totalEarned = user.totalEarned;
+    if (user.todayAds !== undefined) updateSet.todayAds = user.todayAds;
+    if (user.todayAdsDate !== undefined) updateSet.todayAdsDate = user.todayAdsDate;
+    if (user.spinsLeft !== undefined) updateSet.spinsLeft = user.spinsLeft;
+    if (user.spinsDate !== undefined) updateSet.spinsDate = user.spinsDate;
+    if (user.lastAdTime !== undefined) updateSet.lastAdTime = user.lastAdTime;
+    if (user.completedTasks !== undefined) updateSet.completedTasks = user.completedTasks;
+    if (user.referredBy !== undefined) updateSet.referredBy = user.referredBy;
+    if (user.referralCode !== undefined) updateSet.referralCode = user.referralCode;
+    if (user.isBanned !== undefined) updateSet.isBanned = user.isBanned;
+
     await db.insert(telegramUsers).values(user).onDuplicateKeyUpdate({
-      set: {
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        photoUrl: user.photoUrl,
-        updatedAt: new Date(),
-      },
+      set: updateSet,
     });
     return await getTelegramUser(user.telegramId!);
   } catch (error) {

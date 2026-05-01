@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Play } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { trpc } from "@/lib/trpc";
 
 // ── Ad network config ────────────────────────────────────────────────────────
 const AD_SCRIPT_SRC =
@@ -88,16 +89,11 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
     setLoading(true);
     try {
       // 2️⃣ Get token
-      const tokenRes = await fetch("/api/ads.getToken", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telegramId: user.telegramId,
-          initData: window.Telegram?.WebApp?.initData || "",
-        }),
+      const tokenData = await trpc.ads.getToken.mutate({
+        telegramId: user.telegramId,
+        initData: window.Telegram?.WebApp?.initData || "",
       });
 
-      const tokenData = await tokenRes.json();
       if (!tokenData.success) {
         toast({
           title: "خطأ",
@@ -117,17 +113,12 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
       // 5️⃣ Claim reward
-      const claimRes = await fetch("/api/ads.claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telegramId: user.telegramId,
-          token: tokenData.token,
-          initData: window.Telegram?.WebApp?.initData || "",
-        }),
+      const claimData = await trpc.ads.claim.mutate({
+        telegramId: user.telegramId,
+        token: tokenData.token,
+        initData: window.Telegram?.WebApp?.initData || "",
       });
 
-      const claimData = await claimRes.json();
       if (claimData.success) {
         toast({
           title: "🎉 مبروك!",

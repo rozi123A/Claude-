@@ -151,7 +151,7 @@ export default function AdsgramApp() {
         {/* Header */}
         <div className="mb-6 pt-4">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            Adsgram Pro
+            Start Coin✨
           </h1>
           <p className="text-gray-400">اكسب النقاط واسحبها كنجوم حقيقية</p>
         </div>

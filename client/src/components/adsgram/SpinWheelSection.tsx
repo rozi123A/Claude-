@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Gift } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { trpc } from "@/lib/trpc";
 
 interface UserData {
   telegramId: number;
@@ -106,16 +107,11 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
     setIsSpinning(true);
 
     try {
-      const res = await fetch("/api/spin.perform", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telegramId: user.telegramId,
-          initData: window.Telegram?.WebApp?.initData || "",
-        }),
+      const data = await trpc.spin.perform.mutate({
+        telegramId: user.telegramId,
+        initData: window.Telegram?.WebApp?.initData || "",
       });
 
-      const data = await res.json();
       if (!data.success) {
         toast({
           title: "خطأ",

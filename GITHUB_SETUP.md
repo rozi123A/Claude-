@@ -14,7 +14,7 @@ cd adsgram-pro-app
 # تهيئة Git
 git init
 git add .
-git commit -m "Initial commit - Adsgram Pro App"
+git commit -m "Initial commit - Start Coin✨ App"
 git branch -M main
 ```
 

@@ -31,7 +31,7 @@ export default function ReferralSection({ user }: ReferralSectionProps) {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: "Adsgram Pro",
+        title: "Start Coin✨",
         text: "انضم إلي وادفع النقاط كنجوم حقيقية!",
         url: referralLink,
       });

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { AlertCircle, Send } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { trpc } from "@/lib/trpc";
 
 interface UserData {
   telegramId: number;
@@ -38,17 +39,12 @@ export default function WithdrawSection({ user, onSuccess }: WithdrawSectionProp
 
     setLoading(true);
     try {
-      const res = await fetch("/api/withdraw.create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telegramId: user.telegramId,
-          amount: parseInt(amount),
-          initData: window.Telegram?.WebApp?.initData || "",
-        }),
+      const data = await trpc.withdraw.create.mutate({
+        telegramId: user.telegramId,
+        amount: parseInt(amount),
+        initData: window.Telegram?.WebApp?.initData || "",
       });
 
-      const data = await res.json();
       if (data.success) {
         toast({
           title: "✅ تم بنجاح",
