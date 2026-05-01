@@ -29,38 +29,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
-/**
- * Runs database push silently in the background.
- * This ensures the schema is updated without blocking the server start.
- */
-function silentDbPush() {
-  console.log("Starting silent database push...");
-  // Use --force or similar to avoid interactive prompts in production
-  // For drizzle-kit push, we can use 'push' with the config file and it should be non-interactive if possible
-  // or use a more robust migration strategy. Adding a small delay to ensure DB is ready.
-  setTimeout(() => {
-    exec("npx drizzle-kit push --force", (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Silent DB Push Error: ${error.message}`);
-        // Try without --force if it fails, some versions might not support it
-        exec("npx drizzle-kit push", (e2) => {
-           if (e2) console.error("Retry DB Push failed too");
-        });
-        return;
-      }
-      console.log("Silent database push completed.");
-    });
-  }, 5000);
-}
-
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  
-  // Run DB push in background (silent)
-  if (process.env.NODE_ENV === "production") {
-    silentDbPush();
-  }
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
