@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: adsgram-pro-app
+    env: node
+    plan: free
+    buildCommand: pnpm install && pnpm run build && pnpm run db:push
+    startCommand: pnpm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: mysql://root:AQdAADUhpvdHeaUpXvojHFvZOJJHxjDg@switchyard.proxy.rlwy.net:18411/railway
+      - key: JWT_SECRET
+        generateValue: true
+      - key: VITE_APP_ID
+        value: adsgram-pro
+      - key: OAUTH_SERVER_URL
+        value: ""
+      - key: OWNER_OPEN_ID
+        value: ""
