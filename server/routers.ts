@@ -442,7 +442,7 @@ function verifyTelegramWebApp(initData: string): any {
       .digest("hex");
 
     if (calculatedHash !== hash) {
-      console.error("Telegram hash mismatch");
+      console.error("Telegram hash mismatch. Check if BOT_TOKEN is correct.");
       return null;
     }
 

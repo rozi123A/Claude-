@@ -3,7 +3,7 @@ services:
     name: adsgram-pro-app
     env: node
     plan: free
-    buildCommand: pnpm install && pnpm run build && echo "Build successful"
+    buildCommand: pnpm install && pnpm run build
     startCommand: pnpm run start
     envVars:
       - key: NODE_ENV
@@ -18,3 +18,21 @@ services:
         value: ""
       - key: OWNER_OPEN_ID
         value: ""
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_CHAT_ID
+        sync: false
+      - key: ADMIN_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: WEBAPP_URL
+        sync: false
+      - key: AD_REWARD
+        value: "100"
+      - key: MIN_WITHDRAW
+        value: "10000"
+      - key: STARS_RATE
+        value: "1000"
+      - key: AD_COOLDOWN
+        value: "30"
