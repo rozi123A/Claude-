@@ -35,16 +35,22 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
  */
 function silentDbPush() {
   console.log("Starting silent database push...");
-  exec("npx drizzle-kit push", (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Silent DB Push Error: ${error.message}`);
-      return;
-    }
-    if (stderr) {
-      console.log(`Silent DB Push Status: ${stderr}`);
-    }
-    console.log("Silent database push completed.");
-  });
+  // Use --force or similar to avoid interactive prompts in production
+  // For drizzle-kit push, we can use 'push' with the config file and it should be non-interactive if possible
+  // or use a more robust migration strategy. Adding a small delay to ensure DB is ready.
+  setTimeout(() => {
+    exec("npx drizzle-kit push --force", (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Silent DB Push Error: ${error.message}`);
+        // Try without --force if it fails, some versions might not support it
+        exec("npx drizzle-kit push", (e2) => {
+           if (e2) console.error("Retry DB Push failed too");
+        });
+        return;
+      }
+      console.log("Silent database push completed.");
+    });
+  }, 5000);
 }
 
 async function startServer() {

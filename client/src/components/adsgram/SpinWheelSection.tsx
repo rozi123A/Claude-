@@ -114,7 +114,7 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
 
       if (!data.success) {
         toast({
-          title: "خطأ",
+          title: "تنبيه",
           description: data.message || "فشل العجلة",
           variant: "destructive",
         });
@@ -155,11 +155,11 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
       };
 
       animate();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error spinning:", error);
       toast({
-        title: "خطأ",
-        description: "حدث خطأ في الاتصال",
+        title: "خطأ في الاتصال",
+        description: error.message || "تعذر الوصول إلى الخادم، يرجى المحاولة لاحقاً",
         variant: "destructive",
       });
       setIsSpinning(false);
