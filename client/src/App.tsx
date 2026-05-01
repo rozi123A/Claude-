@@ -12,7 +12,9 @@ function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
+      {/* Set AdsgramApp as the default home page for Telegram Mini App */}
+      <Route path={"/"} component={AdsgramApp} />
+      <Route path={"/landing"} component={Home} />
       <Route path={"/app"} component={AdsgramApp} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/404"} component={NotFound} />
