@@ -45,6 +45,7 @@ export const appRouter = router({
           // Get or create user
           let user = await getTelegramUser(input.telegramId);
           if (!user) {
+            console.log(`Creating new user for telegramId: ${input.telegramId}`);
             user = await upsertTelegramUser({
               telegramId: input.telegramId,
               username: verified.username,
@@ -56,7 +57,8 @@ export const appRouter = router({
           }
 
           if (!user) {
-            return { success: false, message: "Failed to create user" };
+            console.error(`Failed to create/get user for telegramId: ${input.telegramId}`);
+            return { success: false, message: "Failed to create user in database" };
           }
 
           // Reset daily limits if needed
@@ -225,13 +227,14 @@ export const appRouter = router({
 
           let user = await getTelegramUser(input.telegramId);
           if (!user) {
-            return { success: false, message: "User not found" };
+            console.error(`Spin failed: User ${input.telegramId} not found`);
+            return { success: false, message: "User not found in database" };
           }
 
           resetDailyIfNeeded(user);
 
           if (user.spinsLeft <= 0) {
-            return { success: false, message: "No spins left" };
+            return { success: false, message: "No spins left today" };
           }
 
           // Calculate weighted random prize
