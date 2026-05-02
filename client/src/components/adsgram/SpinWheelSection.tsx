@@ -32,6 +32,8 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const { toast } = useToast();
+  
+  const spinMutation = trpc.spin.perform.useMutation();
 
   useEffect(() => {
     drawWheel();
@@ -95,7 +97,7 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
 
     ctx.restore();
 
-    // Center Hub (Fancy Button Look)
+    // Center Hub
     const gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 30);
     gradient.addColorStop(0, "#f1c40f");
     gradient.addColorStop(1, "#e67e22");
@@ -134,7 +136,7 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
     setIsSpinning(true);
 
     try {
-      const data = await trpc.spin.perform.mutate({
+      const data = await spinMutation.mutateAsync({
         telegramId: user.telegramId,
         initData: window.Telegram?.WebApp?.initData || "",
       });
