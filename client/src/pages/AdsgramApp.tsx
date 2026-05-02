@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { AlertCircle, Zap, Gift, TrendingUp, Wallet, Award } from "lucide-react";
 import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
 import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
