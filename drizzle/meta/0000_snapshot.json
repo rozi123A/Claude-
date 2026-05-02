@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "73032db0-a0b5-4a48-b8f0-8a5401b661aa",
+  "id": "efe6c489-c5ce-40fd-aeb8-5d97ae70f993",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "ad_tokens": {

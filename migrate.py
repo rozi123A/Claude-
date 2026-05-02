@@ -16,7 +16,7 @@ config = {
     'database': url.path[1:],
 }
 
-sql_file = 'drizzle/0000_fancy_abomination.sql'
+sql_file = 'drizzle/0000_easy_marrow.sql'
 
 try:
     conn = mysql.connector.connect(**config)

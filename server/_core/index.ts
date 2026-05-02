@@ -38,22 +38,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
-  // Auto-migrate database on startup
-  try {
-    const db = await getDb();
-    if (db) {
-      console.log("[Database] Running migrations...");
-      // In production, migrations are in dist/drizzle, in dev they are in drizzle
-      const migrationsPath = process.env.NODE_ENV === "production" 
-        ? path.join(__dirname, "../../drizzle")
-        : path.join(__dirname, "../../../drizzle");
-      
-      await migrate(db, { migrationsFolder: migrationsPath });
-      console.log("[Database] Migrations completed successfully.");
-    }
-  } catch (error) {
-    console.error("[Database] Migration failed:", error);
-  }
+  // Auto-migrate database on startup disabled to prevent Render issues
+  // Migrations are handled manually or via drizzle-kit push
+  console.log("[Database] Skipping auto-migrations on startup.");
 
   const app = express();
   const server = createServer(app);

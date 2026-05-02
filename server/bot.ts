@@ -56,9 +56,14 @@ export async function startBot() {
     ctx.reply("استخدم الزر 'فتح التطبيق' للوصول إلى واجهة الكسب الخاصة بك.");
   });
 
-  bot.launch()
-    .then(() => console.log("[Bot] Telegram bot started successfully"))
-    .catch((err) => console.error("[Bot] Failed to start Telegram bot:", err));
+  // Delete webhook before launching to avoid 409 Conflict errors
+  bot.telegram.deleteWebhook({ drop_pending_updates: true })
+    .then(() => {
+      bot.launch()
+        .then(() => console.log("[Bot] Telegram bot started successfully"))
+        .catch((err) => console.error("[Bot] Failed to start Telegram bot:", err));
+    })
+    .catch((err) => console.error("[Bot] Failed to delete webhook:", err));
 
   // Enable graceful stop
   process.once("SIGINT", () => bot.stop("SIGINT"));
