@@ -113,18 +113,18 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
     ctx.font = "bold 14px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("SPIN", cx, cy);
+    ctx.fillText("GO", cx, cy);
 
-    // Pointer
+    // Pointer (at the top)
     ctx.beginPath();
-    ctx.moveTo(cx + r + 10, cy);
-    ctx.lineTo(cx + r - 10, cy - 15);
-    ctx.lineTo(cx + r - 10, cy + 15);
+    ctx.moveTo(cx - 10, cy - r - 5);
+    ctx.lineTo(cx + 10, cy - r - 5);
+    ctx.lineTo(cx, cy - r + 15);
     ctx.closePath();
-    ctx.fillStyle = "#f1c40f";
+    ctx.fillStyle = "#fff";
     ctx.fill();
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1;
     ctx.stroke();
   };
 
@@ -153,9 +153,8 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
       const prizeIndex = PRIZES.findIndex((p) => p.value === data.prize);
       const segmentAngle = (2 * Math.PI) / PRIZES.length;
       
-      // Calculate final rotation to align the prize with the pointer (at 0 radians / 3 o'clock)
-      // We want: (rotation + final_extra) % 2PI = - (prizeIndex * segmentAngle + segmentAngle/2)
-      const targetPrizeRotation = - (prizeIndex * segmentAngle + segmentAngle / 2);
+      // Calculate final rotation to align the prize with the pointer (at the top / -PI/2)
+      const targetPrizeRotation = - (prizeIndex * segmentAngle + segmentAngle / 2) - Math.PI / 2;
       const currentRotationNormalized = rotation % (Math.PI * 2);
       const extraSpins = 8 * Math.PI * 2; // 8 full circles
       const targetRotation = rotation + extraSpins + (targetPrizeRotation - currentRotationNormalized);
@@ -226,9 +225,14 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
             ref={canvasRef}
             width={320}
             height={320}
-            className="relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer"
             onClick={!isSpinning ? handleSpin : undefined}
+            className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && user.spinsLeft > 0 ? 'hover:scale-105' : ''}`}
           />
+          {!isSpinning && user.spinsLeft > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <div className="animate-ping absolute h-16 w-16 rounded-full bg-yellow-400/20"></div>
+            </div>
+          )}
         </div>
 
         <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">

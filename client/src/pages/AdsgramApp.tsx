@@ -8,6 +8,7 @@ import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
 import WithdrawSection from "@/components/adsgram/WithdrawSection";
 import ReferralSection from "@/components/adsgram/ReferralSection";
 import { useToast } from "@/hooks/use-toast";
+import { trpc } from "@/lib/trpc";
 
 interface UserData {
   telegramId: number;
@@ -23,7 +24,6 @@ interface UserData {
   lastAdTime: number | null;
 }
 
-// تصفير بيانات المستخدم الافتراضي لتبدأ من الصفر
 const DEFAULT_DEMO_USER: UserData = {
   telegramId: 123456789,
   balance: 0.00,
@@ -43,6 +43,9 @@ export default function AdsgramApp() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("home");
   const { toast } = useToast();
+  
+  // استخدام tRPC للاتصال بالسيرفر
+  const getUserMutation = trpc.telegram.getUser.useMutation();
 
   useEffect(() => {
     initializeTelegramApp();
@@ -59,40 +62,26 @@ export default function AdsgramApp() {
         const telegramUser = tg.initDataUnsafe?.user;
 
         if (!telegramUser) {
-          console.warn("No Telegram user, using zeroed demo data.");
           setUser(DEFAULT_DEMO_USER);
           setLoading(false);
           return;
         }
 
         try {
-          // محاولة جلب البيانات الحقيقية من السيرفر
-          const response = await fetch("/api/telegram.getUser", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              telegramId: telegramUser.id,
-              initData: initData,
-            }),
+          // استخدام tRPC mutation لجلب أو إنشاء المستخدم
+          const data = await getUserMutation.mutateAsync({
+            telegramId: telegramUser.id,
+            initData: initData || "",
           });
 
-          const data = await response.json();
           if (data.success && data.user) {
-            setUser(data.user);
+            setUser(data.user as UserData);
           } else {
-            // إذا فشل السيرفر، نستخدم بيانات صفرية مرتبطة بـ ID المستخدم الحقيقي
-            setUser({
-              ...DEFAULT_DEMO_USER,
-              telegramId: telegramUser.id,
-            });
+            setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
           }
         } catch (e) {
-          setUser({
-            ...DEFAULT_DEMO_USER,
-            telegramId: telegramUser.id,
-          });
+          console.error("tRPC Error:", e);
+          setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
         }
       } else {
         setUser(DEFAULT_DEMO_USER);
