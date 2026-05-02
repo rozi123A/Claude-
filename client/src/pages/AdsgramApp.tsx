@@ -23,13 +23,14 @@ interface UserData {
   lastAdTime: number | null;
 }
 
+// تصفير بيانات المستخدم الافتراضي لتبدأ من الصفر
 const DEFAULT_DEMO_USER: UserData = {
   telegramId: 123456789,
-  balance: 5000.00,
-  totalEarned: 15000.00,
-  todayAds: 3,
-  spinsLeft: 2,
-  referralCode: "ref_DEMO",
+  balance: 0.00,
+  totalEarned: 0.00,
+  todayAds: 0,
+  spinsLeft: 5,
+  referralCode: "ref_NEW",
   adReward: 100,
   minWithdraw: 10000,
   starsRate: 1000,
@@ -53,26 +54,19 @@ export default function AdsgramApp() {
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-        tg.disableClosingConfirmation();
-
-        if (tg.themeParams?.bg_color) {
-          document.documentElement.style.setProperty(
-            "--tg-theme-bg",
-            tg.themeParams.bg_color
-          );
-        }
 
         const initData = tg.initData;
         const telegramUser = tg.initDataUnsafe?.user;
 
         if (!telegramUser) {
-          console.warn("Telegram user not found in initDataUnsafe, falling back to demo user.");
+          console.warn("No Telegram user, using zeroed demo data.");
           setUser(DEFAULT_DEMO_USER);
           setLoading(false);
           return;
         }
 
         try {
+          // محاولة جلب البيانات الحقيقية من السيرفر
           const response = await fetch("/api/telegram.getUser", {
             method: "POST",
             headers: {
@@ -88,18 +82,13 @@ export default function AdsgramApp() {
           if (data.success && data.user) {
             setUser(data.user);
           } else {
-            console.error("Server fetch failed:", data.message);
+            // إذا فشل السيرفر، نستخدم بيانات صفرية مرتبطة بـ ID المستخدم الحقيقي
             setUser({
               ...DEFAULT_DEMO_USER,
               telegramId: telegramUser.id,
             });
-            toast({
-              title: "تنبيه",
-              description: "تم تحميل بيانات تجريبية (فشل الاتصال بالسيرفر)",
-            });
           }
         } catch (e) {
-          console.error("Fetch error:", e);
           setUser({
             ...DEFAULT_DEMO_USER,
             telegramId: telegramUser.id,
@@ -107,13 +96,8 @@ export default function AdsgramApp() {
         }
       } else {
         setUser(DEFAULT_DEMO_USER);
-        toast({
-          title: "وضع العرض التوضيحي",
-          description: "يتم تشغيل التطبيق خارج Telegram",
-        });
       }
     } catch (error) {
-      console.error("Error initializing app:", error);
       setUser(DEFAULT_DEMO_USER);
     } finally {
       setLoading(false);
@@ -122,11 +106,8 @@ export default function AdsgramApp() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4 shadow-[0_0_15px_rgba(234,179,8,0.5)]"></div>
-          <p className="text-yellow-400 font-bold tracking-widest animate-pulse">جاري التحميل...</p>
-        </div>
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
       </div>
     );
   }
@@ -134,7 +115,6 @@ export default function AdsgramApp() {
   const safeUser = user || DEFAULT_DEMO_USER;
   const starsEquivalent = Math.floor(safeUser.balance / safeUser.starsRate);
 
-  // Helper to format balance as 00.00
   const formatBalance = (val: number) => {
     return val.toLocaleString('en-US', {
       minimumFractionDigits: 2,
@@ -143,113 +123,86 @@ export default function AdsgramApp() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-4 font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-[#0a0a0f] text-white p-4 font-sans">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center pt-2">
-          <div>
-            <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 bg-clip-text text-transparent">
-              ADSGRAM PRO
-            </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">النظام نشط ومؤمن</p>
-            </div>
-          </div>
-          <div className="p-2 bg-slate-900/50 rounded-full border border-slate-800">
-            <Award className="h-5 w-5 text-yellow-500" />
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-black text-yellow-500">ADSGRAM PRO</h1>
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-slate-800">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-[10px] font-bold uppercase">Online</span>
           </div>
         </div>
 
-        {/* Balance Card - Modern Design */}
-        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600 to-indigo-700 border-none shadow-2xl shadow-purple-900/20">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+        {/* Balance Card */}
+        <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 border-none shadow-xl">
           <CardContent className="p-6">
-            <div className="flex justify-between items-start mb-6">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-purple-100/70">
-                  <Wallet className="h-3.5 w-3.5" />
-                  <span className="text-xs font-bold uppercase tracking-tighter">الرصيد القابل للسحب</span>
-                </div>
-                <div className="text-4xl font-black tracking-tight flex items-baseline gap-1">
-                  <span className="text-yellow-300 drop-shadow-md">{formatBalance(safeUser.balance)}</span>
-                  <span className="text-sm font-medium text-purple-200/60 uppercase">PTS</span>
-                </div>
-              </div>
-              <div className="px-3 py-1.5 bg-black/20 backdrop-blur-md rounded-lg border border-white/10 text-center">
-                <p className="text-[10px] text-purple-200 font-bold uppercase">قيمة النجوم</p>
-                <p className="text-sm font-black text-white">⭐ {starsEquivalent}</p>
+            <div className="space-y-1 mb-6">
+              <p className="text-[10px] text-indigo-100 font-bold uppercase opacity-70">الرصيد الحالي</p>
+              <div className="text-4xl font-black flex items-baseline gap-2">
+                <span>{formatBalance(safeUser.balance)}</span>
+                <span className="text-sm opacity-50 uppercase">PTS</span>
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
               <div>
-                <p className="text-[10px] text-purple-200/70 font-bold uppercase mb-0.5">إجمالي الأرباح</p>
-                <p className="text-lg font-black text-white">{formatBalance(safeUser.totalEarned)}</p>
+                <p className="text-[10px] text-indigo-100 font-bold uppercase opacity-70">إجمالي الأرباح</p>
+                <p className="text-lg font-black">{formatBalance(safeUser.totalEarned)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-purple-200/70 font-bold uppercase mb-0.5">رتبة المستخدم</p>
-                <p className="text-lg font-black text-yellow-400">برونزي</p>
+                <p className="text-[10px] text-indigo-100 font-bold uppercase opacity-70">النجوم المقابلة</p>
+                <p className="text-lg font-black text-yellow-400">⭐ {starsEquivalent}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Stats Grid */}
+        {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50 flex items-center gap-4">
-            <div className="p-2.5 bg-yellow-500/10 rounded-xl">
-              <Zap className="h-5 w-5 text-yellow-500" />
-            </div>
+          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
+            <Zap className="h-5 w-5 text-yellow-500" />
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase">إعلانات اليوم</p>
-              <p className="text-xl font-black">{safeUser.todayAds}</p>
+              <p className="text-[10px] text-gray-500 font-bold">إعلانات اليوم</p>
+              <p className="text-lg font-black">{safeUser.todayAds}</p>
             </div>
           </div>
-          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50 flex items-center gap-4">
-            <div className="p-2.5 bg-purple-500/10 rounded-xl">
-              <Gift className="h-5 w-5 text-purple-500" />
-            </div>
+          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
+            <Gift className="h-5 w-5 text-purple-500" />
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase">السبينات</p>
-              <p className="text-xl font-black">{safeUser.spinsLeft}<span className="text-xs text-gray-600">/5</span></p>
+              <p className="text-[10px] text-gray-500 font-bold">السبينات</p>
+              <p className="text-lg font-black">{safeUser.spinsLeft}/5</p>
             </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-14 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800/50">
-            <TabsTrigger value="home" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">الرئيسية</TabsTrigger>
-            <TabsTrigger value="ads" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">إعلانات</TabsTrigger>
-            <TabsTrigger value="spin" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">عجلة</TabsTrigger>
-            <TabsTrigger value="withdraw" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">سحب</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <TabsTrigger value="home" className="text-xs font-bold">الرئيسية</TabsTrigger>
+            <TabsTrigger value="ads" className="text-xs font-bold">إعلانات</TabsTrigger>
+            <TabsTrigger value="spin" className="text-xs font-bold">عجلة</TabsTrigger>
+            <TabsTrigger value="withdraw" className="text-xs font-bold">سحب</TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
             <TabsContent value="home" className="space-y-4 outline-none">
-              <Card className="bg-slate-900/30 border-slate-800/50 rounded-2xl overflow-hidden">
+              <Card className="bg-slate-900/40 border-slate-800 rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-black flex items-center gap-2 uppercase tracking-tight">
+                  <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-yellow-500" />
-                    خطتك الربحية اليومية
+                    المهام المتاحة
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/50 flex justify-between items-center group transition-all hover:border-purple-500/50">
-                    <div>
-                      <p className="font-black text-sm">📺 مشاهدة الإعلانات</p>
-                      <p className="text-[10px] text-gray-500 font-bold">اكسب {safeUser.adReward} نقطة فوراً</p>
-                    </div>
-                    <Button size="sm" variant="ghost" className="text-xs font-bold text-purple-400" onClick={() => setActiveTab("ads")}>إبدأ</Button>
-                  </div>
-                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/50 flex justify-between items-center group transition-all hover:border-purple-500/50">
-                    <div>
-                      <p className="font-black text-sm">🎰 عجلة الحظ</p>
-                      <p className="text-[10px] text-gray-500 font-bold">جوائز تصل إلى 1000 نقطة</p>
-                    </div>
-                    <Button size="sm" variant="ghost" className="text-xs font-bold text-purple-400" onClick={() => setActiveTab("spin")}>العب</Button>
-                  </div>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-between border-slate-800 hover:bg-slate-800" onClick={() => setActiveTab("ads")}>
+                    <span>مشاهدة إعلان</span>
+                    <span className="text-yellow-500">+{safeUser.adReward} PTS</span>
+                  </Button>
+                  <Button variant="outline" className="w-full justify-between border-slate-800 hover:bg-slate-800" onClick={() => setActiveTab("spin")}>
+                    <span>تجربة الحظ</span>
+                    <span className="text-purple-500">جائزة عشوائية</span>
+                  </Button>
                 </CardContent>
               </Card>
               <ReferralSection user={safeUser} />
