@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Zap, Gift, TrendingUp } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Zap, Gift, TrendingUp, Wallet, Award } from "lucide-react";
 import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
 import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
 import WithdrawSection from "@/components/adsgram/WithdrawSection";
@@ -25,8 +24,8 @@ interface UserData {
 
 const DEFAULT_DEMO_USER: UserData = {
   telegramId: 123456789,
-  balance: 5000,
-  totalEarned: 15000,
+  balance: 5000.00,
+  totalEarned: 15000.00,
   todayAds: 3,
   spinsLeft: 2,
   referralCode: "ref_DEMO",
@@ -49,14 +48,12 @@ export default function AdsgramApp() {
 
   const initializeTelegramApp = async () => {
     try {
-      // Check if running in Telegram WebApp
       if (typeof window !== "undefined" && window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
         tg.disableClosingConfirmation();
 
-        // Apply theme
         if (tg.themeParams?.bg_color) {
           document.documentElement.style.setProperty(
             "--tg-theme-bg",
@@ -64,11 +61,9 @@ export default function AdsgramApp() {
           );
         }
 
-        // Get user data
         const initData = tg.initData;
         const telegramUser = tg.initDataUnsafe?.user;
 
-        // If no user is found but we are in Telegram, we might be in development or some edge case
         if (!telegramUser) {
           console.warn("Telegram user not found in initDataUnsafe, falling back to demo user.");
           setUser(DEFAULT_DEMO_USER);
@@ -76,7 +71,6 @@ export default function AdsgramApp() {
           return;
         }
 
-        // Fetch user data from server
         try {
           const response = await fetch("/api/telegram.getUser", {
             method: "POST",
@@ -93,7 +87,6 @@ export default function AdsgramApp() {
           if (data.success && data.user) {
             setUser(data.user);
           } else {
-            // Fallback to demo user if server fetch fails but we are in Telegram
             console.error("Server fetch failed:", data.message);
             setUser({
               ...DEFAULT_DEMO_USER,
@@ -101,7 +94,7 @@ export default function AdsgramApp() {
             });
             toast({
               title: "تنبيه",
-              description: "فشل الاتصال بالسيرفر، تم تحميل بيانات تجريبية",
+              description: "تم تحميل بيانات تجريبية (فشل الاتصال بالسيرفر)",
             });
           }
         } catch (e) {
@@ -112,7 +105,6 @@ export default function AdsgramApp() {
           });
         }
       } else {
-        // Not in Telegram environment - always provide demo user
         setUser(DEFAULT_DEMO_USER);
         toast({
           title: "وضع العرض التوضيحي",
@@ -122,10 +114,6 @@ export default function AdsgramApp() {
     } catch (error) {
       console.error("Error initializing app:", error);
       setUser(DEFAULT_DEMO_USER);
-      toast({
-        title: "خطأ في التهيئة",
-        description: "تم تحميل بيانات تجريبية لتجنب التوقف",
-      });
     } finally {
       setLoading(false);
     }
@@ -135,145 +123,149 @@ export default function AdsgramApp() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
-          <p className="text-yellow-400 font-semibold">جاري التحميل...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4 shadow-[0_0_15px_rgba(234,179,8,0.5)]"></div>
+          <p className="text-yellow-400 font-bold tracking-widest animate-pulse">جاري التحميل...</p>
         </div>
       </div>
     );
   }
 
-  // user should always be defined now due to fallbacks
   const safeUser = user || DEFAULT_DEMO_USER;
   const starsEquivalent = Math.floor(safeUser.balance / safeUser.starsRate);
 
+  // Helper to format balance as 00.00
+  const formatBalance = (val: number) => {
+    return val.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white p-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-[#0a0a0f] text-white p-4 font-sans selection:bg-purple-500/30">
+      <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6 pt-4">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            Adsgram Pro
-          </h1>
-          <p className="text-gray-400">اكسب النقاط واسحبها كنجوم حقيقية</p>
+        <div className="flex justify-between items-center pt-2">
+          <div>
+            <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 bg-clip-text text-transparent">
+              ADSGRAM PRO
+            </h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">النظام نشط ومؤمن</p>
+            </div>
+          </div>
+          <div className="p-2 bg-slate-900/50 rounded-full border border-slate-800">
+            <Award className="h-5 w-5 text-yellow-500" />
+          </div>
         </div>
 
-        {/* Balance Card */}
-        <Card className="bg-gradient-to-br from-purple-900/50 to-slate-900/50 border-purple-700/50 mb-6">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <p className="text-gray-400 text-sm mb-1">الرصيد الحالي</p>
-                <p className="text-3xl font-bold text-yellow-400">
-                  {safeUser.balance.toLocaleString()}
-                </p>
-                <p className="text-xs text-purple-300 mt-1">
-                  ⭐ {starsEquivalent} نجمة
-                </p>
+        {/* Balance Card - Modern Design */}
+        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600 to-indigo-700 border-none shadow-2xl shadow-purple-900/20">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-purple-100/70">
+                  <Wallet className="h-3.5 w-3.5" />
+                  <span className="text-xs font-bold uppercase tracking-tighter">الرصيد القابل للسحب</span>
+                </div>
+                <div className="text-4xl font-black tracking-tight flex items-baseline gap-1">
+                  <span className="text-yellow-300 drop-shadow-md">{formatBalance(safeUser.balance)}</span>
+                  <span className="text-sm font-medium text-purple-200/60 uppercase">PTS</span>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-gray-400 text-sm mb-1">إجمالي المكسب</p>
-                <p className="text-3xl font-bold text-purple-400">
-                  {safeUser.totalEarned.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  منذ البداية
-                </p>
+              <div className="px-3 py-1.5 bg-black/20 backdrop-blur-md rounded-lg border border-white/10 text-center">
+                <p className="text-[10px] text-purple-200 font-bold uppercase">قيمة النجوم</p>
+                <p className="text-sm font-black text-white">⭐ {starsEquivalent}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+              <div>
+                <p className="text-[10px] text-purple-200/70 font-bold uppercase mb-0.5">إجمالي الأرباح</p>
+                <p className="text-lg font-black text-white">{formatBalance(safeUser.totalEarned)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-purple-200/70 font-bold uppercase mb-0.5">رتبة المستخدم</p>
+                <p className="text-lg font-black text-yellow-400">برونزي</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-yellow-400" />
-                <div>
-                  <p className="text-xs text-gray-400">إعلانات اليوم</p>
-                  <p className="text-lg font-bold">{safeUser.todayAds}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2">
-                <Gift className="h-4 w-4 text-purple-400" />
-                <div>
-                  <p className="text-xs text-gray-400">سبينات متبقية</p>
-                  <p className="text-lg font-bold">{safeUser.spinsLeft}/5</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50 flex items-center gap-4">
+            <div className="p-2.5 bg-yellow-500/10 rounded-xl">
+              <Zap className="h-5 w-5 text-yellow-500" />
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase">إعلانات اليوم</p>
+              <p className="text-xl font-black">{safeUser.todayAds}</p>
+            </div>
+          </div>
+          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50 flex items-center gap-4">
+            <div className="p-2.5 bg-purple-500/10 rounded-xl">
+              <Gift className="h-5 w-5 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase">السبينات</p>
+              <p className="text-xl font-black">{safeUser.spinsLeft}<span className="text-xs text-gray-600">/5</span></p>
+            </div>
+          </div>
         </div>
 
-        {/* Main Tabs */}
+        {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-900/50 border border-slate-700/50">
-            <TabsTrigger value="home" className="text-xs">
-              الرئيسية
-            </TabsTrigger>
-            <TabsTrigger value="ads" className="text-xs">
-              إعلانات
-            </TabsTrigger>
-            <TabsTrigger value="spin" className="text-xs">
-              عجلة
-            </TabsTrigger>
-            <TabsTrigger value="withdraw" className="text-xs">
-              سحب
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-14 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800/50">
+            <TabsTrigger value="home" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">الرئيسية</TabsTrigger>
+            <TabsTrigger value="ads" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">إعلانات</TabsTrigger>
+            <TabsTrigger value="spin" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">عجلة</TabsTrigger>
+            <TabsTrigger value="withdraw" className="rounded-xl text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white">سحب</TabsTrigger>
           </TabsList>
 
-          {/* Home Tab */}
-          <TabsContent value="home" className="space-y-4">
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-yellow-400" />
-                  الطرق المتاحة للكسب
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-3 bg-purple-900/30 rounded-lg border border-purple-700/30">
-                  <p className="font-semibold text-sm mb-1">📺 مشاهدة الإعلانات</p>
-                  <p className="text-xs text-gray-400">
-                    اكسب {safeUser.adReward} نقطة لكل إعلان
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-900/30 rounded-lg border border-purple-700/30">
-                  <p className="font-semibold text-sm mb-1">🎰 عجلة الحظ اليومية</p>
-                  <p className="text-xs text-gray-400">
-                    العب 5 مرات يومياً واكسب جوائز عشوائية
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-900/30 rounded-lg border border-purple-700/30">
-                  <p className="font-semibold text-sm mb-1">👥 نظام الإحالات</p>
-                  <p className="text-xs text-gray-400">
-                    ادعُ أصدقاءك واكسب مكافآت إضافية
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="mt-6">
+            <TabsContent value="home" className="space-y-4 outline-none">
+              <Card className="bg-slate-900/30 border-slate-800/50 rounded-2xl overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-black flex items-center gap-2 uppercase tracking-tight">
+                    <TrendingUp className="h-4 w-4 text-yellow-500" />
+                    خطتك الربحية اليومية
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/50 flex justify-between items-center group transition-all hover:border-purple-500/50">
+                    <div>
+                      <p className="font-black text-sm">📺 مشاهدة الإعلانات</p>
+                      <p className="text-[10px] text-gray-500 font-bold">اكسب {safeUser.adReward} نقطة فوراً</p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="text-xs font-bold text-purple-400" onClick={() => setActiveTab("ads")}>إبدأ</Button>
+                  </div>
+                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800/50 flex justify-between items-center group transition-all hover:border-purple-500/50">
+                    <div>
+                      <p className="font-black text-sm">🎰 عجلة الحظ</p>
+                      <p className="text-[10px] text-gray-500 font-bold">جوائز تصل إلى 1000 نقطة</p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="text-xs font-bold text-purple-400" onClick={() => setActiveTab("spin")}>العب</Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <ReferralSection user={safeUser} />
+            </TabsContent>
 
-            <ReferralSection user={safeUser} />
-          </TabsContent>
+            <TabsContent value="ads" className="outline-none">
+              <WatchAdsSection user={safeUser} onReward={() => initializeTelegramApp()} />
+            </TabsContent>
 
-          {/* Ads Tab */}
-          <TabsContent value="ads">
-            <WatchAdsSection user={safeUser} onReward={() => initializeTelegramApp()} />
-          </TabsContent>
+            <TabsContent value="spin" className="outline-none">
+              <SpinWheelSection user={safeUser} onReward={() => initializeTelegramApp()} />
+            </TabsContent>
 
-          {/* Spin Tab */}
-          <TabsContent value="spin">
-            <SpinWheelSection user={safeUser} onReward={() => initializeTelegramApp()} />
-          </TabsContent>
-
-          {/* Withdraw Tab */}
-          <TabsContent value="withdraw">
-            <WithdrawSection user={safeUser} onSuccess={() => initializeTelegramApp()} />
-          </TabsContent>
+            <TabsContent value="withdraw" className="outline-none">
+              <WithdrawSection user={safeUser} onSuccess={() => initializeTelegramApp()} />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </div>
