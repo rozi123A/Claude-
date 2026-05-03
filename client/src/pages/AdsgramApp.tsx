@@ -202,7 +202,11 @@ export default function AdsgramApp() {
             </TabsContent>
 
             <TabsContent value="spin" className="outline-none">
-              <SpinWheelSection user={safeUser} onReward={() => initializeTelegramApp()} />
+              <SpinWheelSection 
+                user={safeUser} 
+                onReward={() => initializeTelegramApp()} 
+                onSwitchToAds={() => setActiveTab("ads")}
+              />
             </TabsContent>
 
             <TabsContent value="withdraw" className="outline-none">

@@ -6,25 +6,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
-// ── Ad network config ────────────────────────────────────────────────────────
-const AD_SCRIPT_SRC =
-  "https://pl29295764.profitablecpmratenetwork.com/3d/54/e6/3d54e6926dde81b8df0c12dca1818750.js";
-const AD_WATCH_URL =
-  "https://www.profitablecpmratenetwork.com/zz0tahmvj?key=23aa1344c6e3e9cf28733393f88bd734";
-
-/**
- * Inject the ad-network script once into <body> (idempotent).
- * Call this from useEffect so it runs only on the client side.
- */
-function injectAdScript() {
-  if (typeof document === "undefined") return;
-  if (document.querySelector(`script[src="${AD_SCRIPT_SRC}"]`)) return;
-  const s = document.createElement("script");
-  s.src = AD_SCRIPT_SRC;
-  s.async = true;
-  document.body.appendChild(s);
+// Declare Adsgram types
+declare global {
+  interface Window {
+    Adsgram?: {
+      init: (params: { blockId: string; debug?: boolean; onReward?: () => void; onError?: (err: any) => void }) => any;
+    };
+  }
 }
-// ────────────────────────────────────────────────────────────────────────────
 
 interface UserData {
   telegramId: number;
@@ -32,6 +21,7 @@ interface UserData {
   adReward: number;
   adCooldown: number;
   lastAdTime: number | null;
+  todayAds: number;
 }
 
 interface WatchAdsSectionProps {
@@ -43,13 +33,11 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
   const [loading, setLoading] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const { toast } = useToast();
+  
+  const getTokenMutation = trpc.ads.getToken.useMutation();
+  const claimMutation = trpc.ads.claim.useMutation();
 
-  // ── Inject ad script once when component mounts ──────────────────────────
-  useEffect(() => {
-    injectAdScript();
-  }, []);
-
-  // ── Cooldown timer ────────────────────────────────────────────────────────
+  // Cooldown timer
   useEffect(() => {
     if (user.lastAdTime) {
       const elapsed = (Date.now() - user.lastAdTime) / 1000;
@@ -72,8 +60,16 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
     }
   }, [user.lastAdTime, user.adCooldown]);
 
-  // ── Watch-ad handler ──────────────────────────────────────────────────────
   const handleWatchAd = async () => {
+    if (user.todayAds >= 50) {
+      toast({
+        title: "تنبيه",
+        description: "لقد وصلت للحد الأقصى من الإعلانات اليوم (50 إعلان)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (cooldownRemaining > 0) {
       toast({
         title: "انتظر قليلاً",
@@ -83,61 +79,70 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
       return;
     }
 
-    // 1️⃣ Open the ad URL in a new tab immediately on user gesture
-    window.open(AD_WATCH_URL, "_blank", "noopener,noreferrer");
-
     setLoading(true);
+
     try {
-      // 2️⃣ Get token
-      const tokenData = await trpc.ads.getToken.mutate({
+      // 1. Get token from backend
+      const tokenData = await getTokenMutation.mutateAsync({
         telegramId: user.telegramId,
         initData: window.Telegram?.WebApp?.initData || "",
       });
 
-      if (!tokenData.success) {
-        toast({
-          title: "خطأ",
-          description: tokenData.message || "فشل الحصول على توكن",
-          variant: "destructive",
-        });
-        return;
+      if (!tokenData.success || !tokenData.token) {
+        throw new Error(tokenData.message || "فشل الحصول على توكن");
       }
 
-      // 3️⃣ Notify user the ad is showing
-      toast({
-        title: "جاري عرض الإعلان...",
-        description: "يرجى الانتظار",
-      });
-
-      // 4️⃣ Wait 3 s (mirrors the ad view window)
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // 5️⃣ Claim reward
-      const claimData = await trpc.ads.claim.mutate({
-        telegramId: user.telegramId,
-        token: tokenData.token,
-        initData: window.Telegram?.WebApp?.initData || "",
-      });
-
-      if (claimData.success) {
-        toast({
-          title: "🎉 مبروك!",
-          description: `حصلت على ${claimData.reward} نقطة`,
+      // 2. Initialize Adsgram
+      if (!window.Adsgram) {
+        // Try to load script if not present
+        const script = document.createElement("script");
+        script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+        script.async = true;
+        document.body.appendChild(script);
+        
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Failed to load AdsGram SDK"));
         });
-        setCooldownRemaining(user.adCooldown);
-        onReward();
+      }
+
+      const AdController = window.Adsgram!.init({ 
+        blockId: "bot-29281",
+        debug: false 
+      });
+
+      // 3. Show Ad
+      const result = await AdController.show();
+
+      if (result.done) {
+        // 4. Claim reward
+        const claimData = await claimMutation.mutateAsync({
+          telegramId: user.telegramId,
+          token: tokenData.token,
+          initData: window.Telegram?.WebApp?.initData || "",
+        });
+
+        if (claimData.success) {
+          toast({
+            title: "🎉 مبروك!",
+            description: `حصلت على ${claimData.reward} نقطة`,
+          });
+          onReward();
+        } else {
+          throw new Error(claimData.message || "فشل استلام المكافأة");
+        }
       } else {
         toast({
-          title: "خطأ",
-          description: claimData.message || "فشل استلام المكافأة",
+          title: "تنبيه",
+          description: "يجب مشاهدة الإعلان كاملاً للحصول على المكافأة",
           variant: "destructive",
         });
       }
-    } catch (error) {
-      console.error("Error watching ad:", error);
+    } catch (error: any) {
+      console.error("AdsGram Error:", error);
       toast({
-        title: "خطأ",
-        description: "حدث خطأ في الاتصال",
+        title: "خطأ في الإعلانات",
+        description: error.message || "تعذر تحميل نظام الإعلانات حالياً",
         variant: "destructive",
       });
     } finally {
@@ -145,7 +150,6 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Card className="bg-slate-900/50 border-slate-700/50">
       <CardHeader>
@@ -158,11 +162,11 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
         <div className="p-4 bg-purple-900/30 rounded-lg border border-purple-700/30">
           <p className="text-sm text-gray-300 mb-2">
             اكسب{" "}
-            <span className="font-bold text-yellow-400">{user.adReward}</span>{" "}
-            نقطة لكل إعلان
+            <span className="font-bold text-yellow-400">10</span>{" "}
+            نقاط لكل إعلان
           </p>
           <p className="text-xs text-gray-400">
-            يمكنك مشاهدة عدة إعلانات مع فترة انتظار بين كل إعلان
+            الحد اليومي: {user.todayAds}/50 إعلان
           </p>
         </div>
 
@@ -177,29 +181,27 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
 
         <Button
           onClick={handleWatchAd}
-          disabled={loading || cooldownRemaining > 0}
+          disabled={loading || cooldownRemaining > 0 || user.todayAds >= 50}
           className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-bold h-12"
         >
           {loading ? (
             <>
               <span className="animate-spin mr-2">⏳</span>
-              جاري عرض الإعلان...
+              جاري التحميل...
             </>
           ) : cooldownRemaining > 0 ? (
             `انتظر ${Math.ceil(cooldownRemaining)}s`
+          ) : user.todayAds >= 50 ? (
+            "وصلت للحد اليومي"
           ) : (
-            "▶ مشاهدة إعلان"
+            "▶ مشاهدة إعلان (10 PTS)"
           )}
         </Button>
 
-        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="grid grid-cols-2 gap-2 text-center text-xs">
           <div className="p-2 bg-slate-800/50 rounded">
-            <p className="text-gray-400">الحد الأدنى</p>
-            <p className="font-bold text-yellow-400">10,000</p>
-          </div>
-          <div className="p-2 bg-slate-800/50 rounded">
-            <p className="text-gray-400">المعدل</p>
-            <p className="font-bold text-purple-400">1000 = ⭐1</p>
+            <p className="text-gray-400">المكافأة</p>
+            <p className="font-bold text-yellow-400">10 PTS</p>
           </div>
           <div className="p-2 bg-slate-800/50 rounded">
             <p className="text-gray-400">الفترة</p>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Gift, Sparkles } from "lucide-react";
+import { Gift, Sparkles, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
@@ -14,6 +14,7 @@ interface UserData {
 interface SpinWheelSectionProps {
   user: UserData;
   onReward: () => void;
+  onSwitchToAds: () => void;
 }
 
 const PRIZES = [
@@ -27,7 +28,7 @@ const PRIZES = [
   { label: "250", value: 250, color: "#FD79A8" },
 ];
 
-export default function SpinWheelSection({ user, onReward }: SpinWheelSectionProps) {
+export default function SpinWheelSection({ user, onReward, onSwitchToAds }: SpinWheelSectionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -72,7 +73,6 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
       const start = i * arc;
       const end = start + arc;
 
-      // Segment
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.arc(0, 0, r, start, end);
@@ -80,12 +80,10 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
       ctx.fillStyle = PRIZES[i].color;
       ctx.fill();
       
-      // Border between segments
       ctx.strokeStyle = "rgba(255,255,255,0.2)";
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Text
       ctx.save();
       ctx.rotate(start + arc / 2);
       ctx.textAlign = "right";
@@ -110,14 +108,13 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Center Text
     ctx.fillStyle = "#fff";
     ctx.font = "bold 14px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("GO", cx, cy);
 
-    // Pointer (at the top)
+    // Pointer
     ctx.beginPath();
     ctx.moveTo(cx - 10, cy - r - 5);
     ctx.lineTo(cx + 10, cy - r - 5);
@@ -151,27 +148,21 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
         return;
       }
 
-      // Logic for landing on the correct prize
       const prizeIndex = PRIZES.findIndex((p) => p.value === data.prize);
       const segmentAngle = (2 * Math.PI) / PRIZES.length;
       
-      // Calculate final rotation to align the prize with the pointer (at the top / -PI/2)
       const targetPrizeRotation = - (prizeIndex * segmentAngle + segmentAngle / 2) - Math.PI / 2;
       const currentRotationNormalized = rotation % (Math.PI * 2);
-      const extraSpins = 8 * Math.PI * 2; // 8 full circles
+      const extraSpins = 8 * Math.PI * 2;
       const targetRotation = rotation + extraSpins + (targetPrizeRotation - currentRotationNormalized);
 
-      // Animate spin
       const startTime = Date.now();
-      const duration = 4000; // 4 seconds for a smoother feel
+      const duration = 4000;
 
       const animate = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
-
-        // Cubic ease-out for a natural slowing down effect
         const easeOut = 1 - Math.pow(1 - progress, 4);
-
         const currentRotation = rotation + (targetRotation - rotation) * easeOut;
         setRotation(currentRotation);
 
@@ -181,7 +172,6 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
           toast({
             title: "🎉 مبروك!",
             description: `لقد ربحت ${data.prize} نقطة!`,
-            variant: "default",
           });
           onReward();
           setIsSpinning(false);
@@ -220,14 +210,13 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
       </CardHeader>
       <CardContent className="pt-8 pb-6 space-y-6">
         <div className="relative flex justify-center items-center">
-          {/* Decorative background glow */}
           <div className="absolute w-64 h-64 bg-purple-600/10 rounded-full blur-3xl"></div>
           
           <canvas
             ref={canvasRef}
             width={320}
             height={320}
-            onClick={!isSpinning ? handleSpin : undefined}
+            onClick={!isSpinning && user.spinsLeft > 0 ? handleSpin : undefined}
             className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && user.spinsLeft > 0 ? 'hover:scale-105' : ''}`}
           />
           {!isSpinning && user.spinsLeft > 0 && (
@@ -240,45 +229,33 @@ export default function SpinWheelSection({ user, onReward }: SpinWheelSectionPro
         <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-gray-400">المحاولات المتبقية</span>
-            <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 5</span>
+            <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 1</span>
           </div>
           <div className="flex gap-2 justify-center">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
-                  i < user.spinsLeft
-                    ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
-                    : "bg-slate-800"
-                }`}
-              />
-            ))}
+            <div className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${user.spinsLeft > 0 ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]" : "bg-slate-800"}`} />
           </div>
         </div>
 
-        <Button
-          onClick={handleSpin}
-          disabled={isSpinning || user.spinsLeft <= 0}
-          className={`w-full h-14 text-lg font-black transition-all duration-300 ${
-            isSpinning 
-              ? "bg-slate-800 text-gray-500" 
-              : "bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]"
-          }`}
-        >
-          {isSpinning ? (
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
-              جاري الدوران...
-            </div>
-          ) : user.spinsLeft <= 0 ? (
-            "انتهت محاولات اليوم"
-          ) : (
-            "إبدأ الدوران الآن 🎡"
-          )}
-        </Button>
+        {user.spinsLeft > 0 ? (
+          <Button
+            onClick={handleSpin}
+            disabled={isSpinning}
+            className={`w-full h-14 text-lg font-black transition-all duration-300 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]`}
+          >
+            {isSpinning ? "جاري الدوران..." : "إبدأ الدوران الآن 🎡"}
+          </Button>
+        ) : (
+          <Button
+            onClick={onSwitchToAds}
+            className="w-full h-14 text-lg font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg flex items-center justify-center gap-2"
+          >
+            <Play className="h-5 w-5" />
+            شاهد إعلان لتدوير العجلة 🎡
+          </Button>
+        )}
 
         <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
-          يتم تجديد المحاولات تلقائياً كل 24 ساعة
+          تحصل على محاولة مجانية واحدة يومياً
         </p>
       </CardContent>
     </Card>
