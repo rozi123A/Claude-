@@ -95,7 +95,7 @@ export default function WithdrawSection({ user, onSuccess }: WithdrawSectionProp
             type="number"
             placeholder="أدخل المبلغ"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(event) => setAmount(event.target.value)}
             className="bg-slate-800/50 border-slate-700 text-white"
             min={user.minWithdraw}
             max={user.balance}

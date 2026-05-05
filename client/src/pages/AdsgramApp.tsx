@@ -79,8 +79,8 @@ export default function AdsgramApp() {
           } else {
             setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
           }
-        } catch (e) {
-          console.error("tRPC Error:", e);
+        } catch (err) {
+          console.error("tRPC Error:", err);
           setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
         }
       } else {
