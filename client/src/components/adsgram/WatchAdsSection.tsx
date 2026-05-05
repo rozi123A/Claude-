@@ -22,6 +22,7 @@ interface UserData {
   adCooldown: number;
   lastAdTime: number | null;
   todayAds: number;
+  adsgramBlockId?: string;
 }
 
 interface WatchAdsSectionProps {
@@ -107,8 +108,8 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
       }
 
       const AdController = window.Adsgram!.init({ 
-        blockId: "bot-29281",
-        debug: false 
+        blockId: user.adsgramBlockId || "demo-block-id",
+        debug: true 
       });
 
       // 3. Show Ad

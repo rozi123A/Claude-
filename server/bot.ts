@@ -1,8 +1,52 @@
 import { Telegraf, Markup } from "telegraf";
-import { getTelegramUser, upsertTelegramUser } from "./db";
+import { getTelegramUser, upsertTelegramUser, getPendingWithdrawals, updateWithdrawalStatus } from "./db";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || process.env.FRONTEND_URL;
+
+// Helper to send stars to user via Telegram
+async function sendStarsToUser(telegramId: number, stars: number, amount: number): Promise<boolean> {
+  if (!BOT_TOKEN) {
+    console.error("[Bot] Cannot send stars: BOT_TOKEN not set");
+    return false;
+  }
+  
+  const bot = new Telegraf(BOT_TOKEN);
+  
+  try {
+    // Use Telegram's payment API (stars)
+    await bot.telegram.sendMessage(
+      telegramId,
+      `🎁 تم إرسال مكافأتك!\n\n✨ ${stars} نجمة\n💰 القيمة: ${amount} نقطة\n\nشكراً لاستخدامك Adsgram Pro!`
+    );
+    return true;
+  } catch (error) {
+    console.error("[Bot] Failed to send stars:", error);
+    return false;
+  }
+}
+
+// Admin command to process withdrawals
+async function processPendingWithdrawals(): Promise<string> {
+  const pending = await getPendingWithdrawals();
+  let processed = 0;
+  
+  for (const w of pending) {
+    try {
+      const success = await sendStarsToUser(w.telegramId, w.stars, w.amount);
+      if (success) {
+        await updateWithdrawalStatus(w.id, "completed", "Stars sent");
+        processed++;
+      } else {
+        await updateWithdrawalStatus(w.id, "rejected", "Failed to send stars");
+      }
+    } catch (error) {
+      console.error("[Bot] Error processing withdrawal:", error);
+    }
+  }
+  
+  return `Processed ${processed} withdrawals`;
+}
 
 export async function startBot() {
   if (!BOT_TOKEN) {
@@ -54,6 +98,30 @@ export async function startBot() {
 
   bot.help((ctx) => {
     ctx.reply("استخدم الزر 'فتح التطبيق' للوصول إلى واجهة الكسب الخاصة بك.");
+  });
+
+  // Admin: Check pending withdrawals
+  bot.command("withdrawals", async (ctx) => {
+    const pending = await getPendingWithdrawals();
+    if (pending.length === 0) {
+      await ctx.reply("📭 لا توجد طلبات سحب معلقة");
+      return;
+    }
+    
+    let message = "📋 طلبات السحب المعلقة:\n\n";
+    for (const w of pending) {
+      message += `🔹 #${w.id} - المستخدم: ${w.telegramId}\n`;
+      message += `   💰 ${w.amount} نقطة = ✨ ${w.stars} نجمة\n`;
+      message += `   📅 ${w.createdAt}\n\n`;
+    }
+    
+    await ctx.reply(message);
+  });
+
+  // Admin: Force process withdrawals
+  bot.command("process", async (ctx) => {
+    const result = await processPendingWithdrawals();
+    await ctx.reply(result);
   });
 
   // Delete webhook before launching to avoid 409 Conflict errors

@@ -103,6 +103,16 @@ export async function getTelegramUser(telegramId: number) {
 }
 
 /**
+ * Get all Telegram users (for referral lookup)
+ */
+export async function getAllTelegramUsers() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(telegramUsers);
+}
+
+/**
  * Create or update Telegram user
  */
 export async function upsertTelegramUser(user: InsertTelegramUser) {
@@ -128,6 +138,7 @@ export async function upsertTelegramUser(user: InsertTelegramUser) {
     if (user.spinsLeft !== undefined) updateSet.spinsLeft = user.spinsLeft;
     if (user.spinsDate !== undefined) updateSet.spinsDate = user.spinsDate;
     if (user.lastAdTime !== undefined) updateSet.lastAdTime = user.lastAdTime;
+    if (user.lastGiftDate !== undefined) updateSet.lastGiftDate = user.lastGiftDate;
     if (user.completedTasks !== undefined) updateSet.completedTasks = user.completedTasks;
     if (user.referredBy !== undefined) updateSet.referredBy = user.referredBy;
     if (user.referralCode !== undefined) updateSet.referralCode = user.referralCode;

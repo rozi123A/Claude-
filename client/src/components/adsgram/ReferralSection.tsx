@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface UserData {
   referralCode: string;
+  telegramId: number;
 }
 
 interface ReferralSectionProps {
@@ -16,7 +17,9 @@ export default function ReferralSection({ user }: ReferralSectionProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  const referralLink = `https://t.me/your_bot?start=${user.referralCode}`;
+  // Use the bot username from Telegram or a default
+  const botUsername = "ads_reward123_bot"; // Your bot username
+  const referralLink = `https://t.me/${botUsername}?start=${user.referralCode}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralLink);

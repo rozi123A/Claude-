@@ -45,6 +45,7 @@ export const telegramUsers = mysqlTable("telegram_users", {
   spinsLeft: int("spins_left").default(5).notNull(),
   spinsDate: varchar("spins_date", { length: 10 }).default(""),
   lastAdTime: timestamp("last_ad_time"),
+  lastGiftDate: varchar("last_gift_date", { length: 10 }).default(""),
   completedTasks: text("completed_tasks"), // JSON array
   referredBy: bigint("referred_by", { mode: "number" }),
   referralCode: varchar("referral_code", { length: 32 }).unique(),

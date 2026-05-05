@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
+const withdrawMutation = trpc.withdraw.create.useMutation();
+
 interface UserData {
   telegramId: number;
   balance: number;
@@ -39,7 +41,7 @@ export default function WithdrawSection({ user, onSuccess }: WithdrawSectionProp
 
     setLoading(true);
     try {
-      const data = await trpc.withdraw.create.mutate({
+      const data = await withdrawMutation.mutateAsync({
         telegramId: user.telegramId,
         amount: parseInt(amount),
         initData: window.Telegram?.WebApp?.initData || "",

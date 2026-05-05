@@ -1,9 +1,9 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
+import { systemRouter, authRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting } from "./db";
+import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getAllTelegramUsers } from "./db";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
@@ -11,8 +11,22 @@ import { ENV } from "./_core/env";
 // Helper to verify Telegram WebApp data
 function verifyTelegramWebApp(initData: string) {
   if (!initData) return null;
+  
   const botToken = ENV.botToken;
-  if (!botToken) return null;
+  
+  // In development mode without bot token, accept any valid initData for testing
+  if (!botToken || botToken === "your_bot_token_here") {
+    try {
+      const urlParams = new URLSearchParams(initData);
+      const userData = urlParams.get("user");
+      if (userData) {
+        return JSON.parse(userData);
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  }
 
   try {
     const urlParams = new URLSearchParams(initData);
@@ -37,20 +51,23 @@ function verifyTelegramWebApp(initData: string) {
 // Helper to reset daily limits
 function resetDailyIfNeeded(user: any) {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-
+  const todayStr = now.toISOString().split("T")[0];
+  const today = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+  
   const updates: any = {};
   
-  const adDate = user.todayAdsDate ? new Date(user.todayAdsDate).getTime() : 0;
-  if (adDate < today) {
+  // Check and reset todayAds if it's a new day
+  const adDate = user.todayAdsDate ? String(user.todayAdsDate) : "";
+  if (!adDate || adDate < todayStr) {
     updates.todayAds = 0;
-    updates.todayAdsDate = now;
+    updates.todayAdsDate = todayStr;
   }
 
-  const spinDate = user.spinsDate ? new Date(user.spinsDate).getTime() : 0;
-  if (spinDate < today) {
+  // Check and reset spins if it's a new day
+  const spinDate = user.spinsDate ? String(user.spinsDate) : "";
+  if (!spinDate || spinDate < todayStr) {
     updates.spinsLeft = 1; // 1 free spin per day
-    updates.spinsDate = now;
+    updates.spinsDate = todayStr;
   }
 
   return updates;
@@ -58,10 +75,11 @@ function resetDailyIfNeeded(user: any) {
 
 export const appRouter = router({
   system: systemRouter,
+  auth: authRouter,
   
   telegram: router({
     getUser: publicProcedure
-      .input(z.object({ telegramId: z.number(), initData: z.string() }))
+      .input(z.object({ telegramId: z.number(), initData: z.string(), referralCode: z.string().optional() }))
       .mutation(async ({ input }) => {
         const verified = verifyTelegramWebApp(input.initData);
         if (!verified || verified.id !== input.telegramId) {
@@ -72,6 +90,15 @@ export const appRouter = router({
         const now = new Date();
 
         if (!user) {
+          // New user - check for referral
+          let referredByUser = null;
+          if (input.referralCode) {
+            const allUsers = await getAllTelegramUsers();
+            referredByUser = allUsers.find(u => u.referralCode === input.referralCode);
+          }
+          
+          const newReferralCode = `REF${input.telegramId}`;
+          
           user = await upsertTelegramUser({
             telegramId: input.telegramId,
             username: verified.username,
@@ -81,9 +108,11 @@ export const appRouter = router({
             balance: 0,
             totalEarned: 0,
             todayAds: 0,
-            todayAdsDate: now,
+            todayAdsDate: now.toISOString().split("T")[0],
             spinsLeft: 1,
-            spinsDate: now,
+            spinsDate: now.toISOString().split("T")[0],
+            referralCode: newReferralCode,
+            referredBy: referredByUser?.telegramId,
           });
         } else {
           const dailyUpdates = resetDailyIfNeeded(user);
@@ -94,6 +123,7 @@ export const appRouter = router({
 
         const starsRate = await getSetting("starsRate", 1000);
         const minWithdraw = await getSetting("minWithdraw", 10000);
+        const adsgramBlockId = ENV.adsgramBlockId || "demo-block-id";
 
         return {
           success: true,
@@ -103,6 +133,7 @@ export const appRouter = router({
             adCooldown: 30,
             starsRate,
             minWithdraw,
+            adsgramBlockId,
             lastAdTime: user?.lastAdTime?.getTime() || null,
           },
         };
@@ -205,6 +236,103 @@ export const appRouter = router({
         });
 
         return { success: true, prize, balance: user?.balance, spinsLeft: user?.spinsLeft };
+      }),
+  }),
+
+  withdraw: router({
+    create: publicProcedure
+      .input(z.object({ telegramId: z.number(), amount: z.number(), initData: z.string() }))
+      .mutation(async ({ input }) => {
+        const verified = verifyTelegramWebApp(input.initData);
+        if (!verified || verified.id !== input.telegramId) return { success: false, message: "Invalid data" };
+
+        const user = await getTelegramUser(input.telegramId);
+        if (!user) return { success: false, message: "User not found" };
+
+        const minWithdraw = await getSetting("minWithdraw", 10000);
+        if (user.balance < input.amount) return { success: false, message: "Insufficient balance" };
+        if (input.amount < minWithdraw) return { success: false, message: `Minimum withdrawal is ${minWithdraw}` };
+
+        const starsRate = await getSetting("starsRate", 1000);
+        const stars = Math.floor(input.amount / starsRate);
+
+        const withdrawal = await createWithdrawal({
+          telegramId: input.telegramId,
+          amount: input.amount,
+          stars,
+        });
+
+        const withdrawalId = withdrawal ? (withdrawal as any).insertId : undefined;
+
+        await upsertTelegramUser({
+          ...user,
+          balance: user.balance - input.amount,
+        });
+
+        await createTransaction({
+          telegramId: input.telegramId,
+          type: "withdraw",
+          points: -input.amount,
+          metadata: JSON.stringify({ withdrawalId }),
+        });
+
+        return { success: true, stars };
+      }),
+  }),
+
+  // Daily gift - free coins every day
+  dailyGift: router({
+    claim: publicProcedure
+      .input(z.object({ telegramId: z.number(), initData: z.string() }))
+      .mutation(async ({ input }) => {
+        const verified = verifyTelegramWebApp(input.initData);
+        if (!verified || verified.id !== input.telegramId) {
+          return { success: false, message: "Invalid data", reward: 0 };
+        }
+
+        const user = await getTelegramUser(input.telegramId);
+        if (!user) {
+          return { success: false, message: "User not found", reward: 0 };
+        }
+
+        const now = new Date();
+        const todayStr = now.toISOString().split("T")[0];
+        
+        // Check if already claimed today
+        if (user.lastGiftDate === todayStr) {
+          return { 
+            success: false, 
+            message: "You have already received today's gift! Come back tomorrow.", 
+            reward: 0,
+            canClaim: false,
+            nextGiftTime: "24:00:00"
+          };
+        }
+
+        // Gift amounts: 50, 100, 150, 200, 500
+        const giftAmounts = [50, 100, 150, 200, 500];
+        const reward = giftAmounts[Math.floor(Math.random() * giftAmounts.length)];
+
+        const updatedUser = await upsertTelegramUser({
+          ...user,
+          balance: user.balance + reward,
+          totalEarned: user.totalEarned + reward,
+          lastGiftDate: todayStr,
+        });
+
+        await createTransaction({
+          telegramId: input.telegramId,
+          type: "bonus",
+          points: reward,
+          metadata: JSON.stringify({ giftType: "daily" }),
+        });
+
+        return { 
+          success: true, 
+          reward, 
+          canClaim: true,
+          nextGiftDate: now.toISOString().split("T")[0]
+        };
       }),
   }),
 });

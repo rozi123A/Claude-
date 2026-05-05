@@ -7,6 +7,7 @@ import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
 import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
 import WithdrawSection from "@/components/adsgram/WithdrawSection";
 import ReferralSection from "@/components/adsgram/ReferralSection";
+import DailyGiftSection from "@/components/adsgram/DailyGiftSection";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
@@ -22,6 +23,8 @@ interface UserData {
   starsRate: number;
   adCooldown: number;
   lastAdTime: number | null;
+  adsgramBlockId?: string;
+  lastGiftDate?: string;
 }
 
 const DEFAULT_DEMO_USER: UserData = {
@@ -51,6 +54,15 @@ export default function AdsgramApp() {
     initializeTelegramApp();
   }, []);
 
+  // Get referral code from URL params
+  const getReferralCodeFromURL = () => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("ref") || urlParams.get("referralCode") || undefined;
+    }
+    return undefined;
+  };
+
   const initializeTelegramApp = async () => {
     try {
       if (typeof window !== "undefined" && window.Telegram?.WebApp) {
@@ -60,6 +72,7 @@ export default function AdsgramApp() {
 
         const initData = tg.initData;
         const telegramUser = tg.initDataUnsafe?.user;
+        const referralCode = getReferralCodeFromURL();
 
         if (!telegramUser) {
           setUser(DEFAULT_DEMO_USER);
@@ -72,6 +85,7 @@ export default function AdsgramApp() {
           const data = await getUserMutation.mutateAsync({
             telegramId: telegramUser.id,
             initData: initData || "",
+            referralCode: referralCode,
           });
 
           if (data.success && data.user) {
@@ -176,6 +190,12 @@ export default function AdsgramApp() {
 
           <div className="mt-6">
             <TabsContent value="home" className="space-y-4 outline-none">
+              {/* Daily Gift - Top of home */}
+              <DailyGiftSection 
+                user={safeUser} 
+                onClaim={() => initializeTelegramApp()} 
+              />
+              
               <Card className="bg-slate-900/40 border-slate-800 rounded-xl">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-black uppercase flex items-center gap-2">

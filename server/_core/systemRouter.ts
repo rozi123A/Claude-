@@ -27,3 +27,10 @@ export const systemRouter = router({
       } as const;
     }),
 });
+
+// Auth router - provides me query and logout for auth flow compatibility
+export const authRouter = router({
+  me: publicProcedure.query(() => ({ name: null, email: null } as { name: string | null; email: string | null })),
+  
+  logout: publicProcedure.mutation(() => ({ success: true })),
+});
