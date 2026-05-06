@@ -33,14 +33,14 @@ export async function startBot() {
         });
       }
 
-      const welcomeMessage = `مرحباً بك يا ${firstName}! 🚀\n\nهذا هو بوت Adsgram Pro. يمكنك كسب النجوم من خلال مشاهدة الإعلانات وتدوير العجلة.\n\nاضغط على الزر أدناه لفتح التطبيق وابدأ الكسب الآن!`;
+      const welcomeMessage = `مرحباً بك يا ${firstName}! 🚀\n\n🎮 العب الآن واربح النقاط!\n🚀 كلما لعبت أكثر ربحت أكثر.\n💰 اجمع النقاط يومياً.\n🏆 تحدَّ نفسك واربح المكافآت.\n\nاضغط على الزر أدناه لفتح التطبيق وابدأ الكسب الآن!`;
 
       if (WEBAPP_URL) {
         await ctx.reply(
           welcomeMessage,
           Markup.inlineKeyboard([
             [Markup.button.webApp("فتح التطبيق 📱", WEBAPP_URL)],
-            [Markup.button.url("قناة التحديثات 📢", "https://t.me/your_channel")]
+            [Markup.button.url("قناة التحديثات 📢", "https://t.me/ads_reward123")]
           ])
         );
       } else {
@@ -56,14 +56,27 @@ export async function startBot() {
     ctx.reply("استخدم الزر 'فتح التطبيق' للوصول إلى واجهة الكسب الخاصة بك.");
   });
 
-  // Delete webhook before launching to avoid 409 Conflict errors
-  bot.telegram.deleteWebhook({ drop_pending_updates: true })
-    .then(() => {
-      bot.launch()
-        .then(() => console.log("[Bot] Telegram bot started successfully"))
-        .catch((err) => console.error("[Bot] Failed to start Telegram bot:", err));
-    })
-    .catch((err) => console.error("[Bot] Failed to delete webhook:", err));
+  // Delete webhook and drop pending updates to avoid 409 Conflict errors
+  try {
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    console.log("[Bot] Webhook deleted successfully");
+    
+    // Launch with polling options to handle conflicts better
+    await bot.launch({
+      polling: {
+        allowedUpdates: [],
+        dropPendingUpdates: true,
+      }
+    });
+    console.log("[Bot] Telegram bot started successfully");
+  } catch (err) {
+    console.error("[Bot] Failed to start Telegram bot:", err);
+    // If it's a conflict, wait and retry once
+    if (err.response?.error_code === 409) {
+      console.log("[Bot] Conflict detected, retrying in 5 seconds...");
+      setTimeout(() => startBot(), 5000);
+    }
+  }
 
   // Enable graceful stop
   process.once("SIGINT", () => bot.stop("SIGINT"));
