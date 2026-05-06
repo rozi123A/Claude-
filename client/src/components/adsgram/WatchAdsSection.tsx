@@ -106,10 +106,13 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
         });
       }
 
-      const AdController = window.Adsgram!.init({ 
-        blockId: "bot-29281",
-        debug: false 
-      });
+	      let rawBlockId = import.meta.env.VITE_ADSGRAM_BLOCK_ID || "bot-29281";
+	      const blockId = rawBlockId.startsWith("bot-") ? rawBlockId : `bot-${rawBlockId}`;
+	      
+	      const AdController = window.Adsgram!.init({ 
+	        blockId: blockId,
+	        debug: false 
+	      });
 
       // 3. Show Ad
       const result = await AdController.show();
