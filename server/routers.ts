@@ -61,7 +61,11 @@ export const appRouter = router({
   
   telegram: router({
     getUser: publicProcedure
-      .input(z.object({ telegramId: z.number(), initData: z.string() }))
+      .input(z.object({ 
+        telegramId: z.number(), 
+        initData: z.string(),
+        referredBy: z.number().optional()
+      }))
       .mutation(async ({ input }) => {
         const verified = verifyTelegramWebApp(input.initData);
         if (!verified || verified.id !== input.telegramId) {
@@ -72,6 +76,7 @@ export const appRouter = router({
         const now = new Date();
 
         if (!user) {
+          // New user registration
           user = await upsertTelegramUser({
             telegramId: input.telegramId,
             username: verified.username,
@@ -84,7 +89,35 @@ export const appRouter = router({
             todayAdsDate: now,
             spinsLeft: 1,
             spinsDate: now,
+            referredBy: input.referredBy && input.referredBy !== input.telegramId ? input.referredBy : null,
           });
+
+          // Create registration log
+          await createTransaction({
+            telegramId: input.telegramId,
+            type: "bonus",
+            points: 0,
+            metadata: JSON.stringify({ action: "registration" }),
+          });
+
+          // Handle referral bonus for the inviter
+          if (input.referredBy && input.referredBy !== input.telegramId) {
+            const inviter = await getTelegramUser(input.referredBy);
+            if (inviter) {
+              const bonus = 500;
+              await upsertTelegramUser({
+                ...inviter,
+                balance: inviter.balance + bonus,
+                totalEarned: inviter.totalEarned + bonus,
+              });
+              await createTransaction({
+                telegramId: input.referredBy,
+                type: "referral",
+                points: bonus,
+                metadata: JSON.stringify({ referredId: input.telegramId }),
+              });
+            }
+          }
         } else {
           const dailyUpdates = resetDailyIfNeeded(user);
           if (Object.keys(dailyUpdates).length > 0) {
@@ -106,6 +139,12 @@ export const appRouter = router({
             lastAdTime: user?.lastAdTime?.getTime() || null,
           },
         };
+      }),
+    getTransactions: publicProcedure
+      .input(z.object({ telegramId: z.number() }))
+      .query(async ({ input }) => {
+        const { getTransactions } = await import("./db");
+        return await getTransactions(input.telegramId);
       }),
   }),
 

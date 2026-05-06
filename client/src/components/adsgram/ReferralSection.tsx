@@ -3,27 +3,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Share2, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { translations, type Language } from "@/lib/i18n";
 
 interface UserData {
+  telegramId: number;
   referralCode: string;
 }
 
 interface ReferralSectionProps {
   user: UserData;
+  lang: Language;
 }
 
-export default function ReferralSection({ user }: ReferralSectionProps) {
+export default function ReferralSection({ user, lang }: ReferralSectionProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
-
-  const referralLink = `https://t.me/your_bot?start=${user.referralCode}`;
+  const t = translations[lang];
+  
+  const referralLink = `https://t.me/ads_reward123_bot?start=${user.telegramId}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     toast({
-      title: "✅ تم النسخ",
-      description: "تم نسخ رابط الإحالة",
+      title: t.copied,
+      description: t.referral_link,
     });
     setTimeout(() => setCopied(false), 2000);
   };
@@ -32,7 +36,7 @@ export default function ReferralSection({ user }: ReferralSectionProps) {
     if (navigator.share) {
       navigator.share({
         title: "Start Coin✨",
-        text: "انضم إلي وادفع النقاط كنجوم حقيقية!",
+        text: t.welcome,
         url: referralLink,
       });
     } else {
@@ -45,20 +49,19 @@ export default function ReferralSection({ user }: ReferralSectionProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Share2 className="h-5 w-5 text-blue-400" />
-          نظام الإحالات
+          {t.referral_system}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="p-4 bg-blue-900/30 rounded-lg border border-blue-700/30">
           <p className="text-sm text-gray-300 mb-3">
-            ادعُ أصدقاءك واكسب مكافآت إضافية عند انضمامهم!
+            {t.referral_msg}
           </p>
           <div className="bg-slate-900/50 p-3 rounded border border-slate-700 mb-3 break-all">
-            <p className="text-xs text-gray-400 mb-1">رابط الإحالة:</p>
+            <p className="text-xs text-gray-400 mb-1">{t.referral_link}</p>
             <p className="text-sm font-mono text-yellow-400">{referralLink}</p>
           </div>
         </div>
-
         <div className="grid grid-cols-2 gap-2">
           <Button
             onClick={handleCopy}
@@ -68,12 +71,12 @@ export default function ReferralSection({ user }: ReferralSectionProps) {
             {copied ? (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                تم النسخ
+                {t.copied}
               </>
             ) : (
               <>
                 <Copy className="h-4 w-4 mr-2" />
-                نسخ
+                {t.copy}
               </>
             )}
           </Button>
@@ -82,19 +85,18 @@ export default function ReferralSection({ user }: ReferralSectionProps) {
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Share2 className="h-4 w-4 mr-2" />
-            مشاركة
+            {t.share}
           </Button>
         </div>
-
         <div className="space-y-2 text-xs text-gray-400">
-          <p className="font-semibold text-yellow-400 mb-2">🎁 المكافآت:</p>
+          <p className="font-semibold text-yellow-400 mb-2">{t.rewards}</p>
           <p className="flex items-center gap-2">
             <span>👤</span>
-            <span>كل صديق ينضم: +500 نقطة</span>
+            <span>{t.friend_join}</span>
           </p>
           <p className="flex items-center gap-2">
             <span>💰</span>
-            <span>10% من أرباح الصديق</span>
+            <span>{t.friend_earnings}</span>
           </p>
         </div>
       </CardContent>

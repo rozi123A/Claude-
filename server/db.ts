@@ -330,3 +330,22 @@ export async function getUserStats() {
     return { totalUsers: 0, totalAds: 0, pendingWithdrawals: 0 };
   }
 }
+
+/**
+ * Get user transactions
+ */
+export async function getTransactions(telegramId: number, limit: number = 20) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select()
+      .from(transactions)
+      .where(eq(transactions.telegramId, telegramId))
+      .orderBy(transactions.createdAt)
+      .limit(limit);
+  } catch (error) {
+    console.error("[Database] Failed to get transactions:", error);
+    return [];
+  }
+}
