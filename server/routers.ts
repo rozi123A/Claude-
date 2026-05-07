@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting } from "./db";
+import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions } from "./db";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
@@ -132,7 +132,7 @@ export const appRouter = router({
           success: true,
           user: {
             ...user,
-            adReward: 10,
+            adReward: 100, // Updated to match user's previous config
             adCooldown: 30,
             starsRate,
             minWithdraw,
@@ -143,7 +143,6 @@ export const appRouter = router({
     getTransactions: publicProcedure
       .input(z.object({ telegramId: z.number() }))
       .query(async ({ input }) => {
-        const { getTransactions } = await import("./db");
         return await getTransactions(input.telegramId);
       }),
   }),
@@ -180,8 +179,7 @@ export const appRouter = router({
         let user = await getTelegramUser(input.telegramId);
         if (!user) return { success: false, message: "User not found" };
 
-        const reward = 10;
-        // When watching an ad, user gets 10 points AND 1 spin if they have 0 spins
+        const reward = 100; // Updated to match user's previous config
         const newSpins = user.spinsLeft === 0 ? 1 : user.spinsLeft;
 
         user = await upsertTelegramUser({
