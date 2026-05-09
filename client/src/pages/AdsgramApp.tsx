@@ -22,6 +22,7 @@ interface UserData {
   minWithdraw: number;
   starsRate: number;
   adCooldown: number;
+  adsgramBlockId: string;
   lastAdTime: number | null;
 }
 
@@ -36,6 +37,7 @@ const DEFAULT_DEMO_USER: UserData = {
   minWithdraw: 10000,
   starsRate: 1000,
   adCooldown: 30,
+  adsgramBlockId: "29281",
   lastAdTime: null,
 };
 

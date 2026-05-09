@@ -9,6 +9,7 @@ interface UserData {
   telegramId: number;
   balance: number;
   spinsLeft: number;
+  adsgramBlockId: string;
 }
 
 interface SpinWheelSectionProps {
@@ -154,7 +155,7 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
         });
       }
 
-      const blockId = "29281";
+      const blockId = user.adsgramBlockId || "29281";
       const AdController = window.Adsgram!.init({ blockId, debug: false });
       const result = await AdController.show();
 

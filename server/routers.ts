@@ -148,10 +148,11 @@ export const appRouter = router({
           success: true,
           user: {
             ...user,
-            adReward: 100, // Updated to match user's previous config
+            adReward: 100,
             adCooldown: 30,
             starsRate,
             minWithdraw,
+            adsgramBlockId: ENV.adsgramBlockId,
             lastAdTime: user?.lastAdTime?.getTime() || null,
           },
         };
@@ -195,12 +196,15 @@ export const appRouter = router({
         let user = await getTelegramUser(input.telegramId);
         if (!user) return { success: false, message: "User not found" };
 
-        const reward = 100; // Updated to match user's previous config
-        const newSpins = user.spinsLeft === 0 ? 1 : user.spinsLeft;
-
+        const reward = 100;
         const currentBalance = Number(user.balance) || 0;
         const currentTotalEarned = Number(user.totalEarned) || 0;
         const currentTodayAds = Number(user.todayAds) || 0;
+        const currentSpins = Number(user.spinsLeft) || 0;
+
+        // Always give at least 1 spin if they watched an ad from the spin section
+        // Or increment if they already have some.
+        const newSpins = currentSpins + 1;
 
         user = await upsertTelegramUser({
           ...user,

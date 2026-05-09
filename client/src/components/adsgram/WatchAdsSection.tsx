@@ -20,6 +20,7 @@ interface UserData {
   balance: number;
   adReward: number;
   adCooldown: number;
+  adsgramBlockId: string;
   lastAdTime: number | null;
   todayAds: number;
 }
@@ -104,7 +105,7 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
         });
       }
 
-      const blockId = "29281";
+      const blockId = user.adsgramBlockId || "29281";
       const AdController = window.Adsgram!.init({ blockId, debug: false });
 
       // 3. Show Ad
