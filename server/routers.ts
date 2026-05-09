@@ -182,7 +182,12 @@ export const appRouter = router({
       }),
 
     claim: publicProcedure
-      .input(z.object({ telegramId: z.number(), token: z.string(), initData: z.string() }))
+      .input(z.object({ 
+        telegramId: z.number(), 
+        token: z.string(), 
+        initData: z.string(),
+        type: z.enum(["points", "spin"]).default("points")
+      }))
       .mutation(async ({ input }) => {
         const verified = verifyTelegramWebApp(input.initData);
         if (!verified || verified.id !== input.telegramId) return { success: false, message: "Invalid data" };
@@ -202,27 +207,37 @@ export const appRouter = router({
         const currentTodayAds = Number(user.todayAds) || 0;
         const currentSpins = Number(user.spinsLeft) || 0;
 
-        // Always give at least 1 spin if they watched an ad from the spin section
-        // Or increment if they already have some.
-        const newSpins = currentSpins + 1;
-
-        user = await upsertTelegramUser({
+        const updates: any = {
           ...user,
-          balance: currentBalance + reward,
-          totalEarned: currentTotalEarned + reward,
           todayAds: currentTodayAds + 1,
           lastAdTime: new Date(),
-          spinsLeft: newSpins,
-        });
+        };
+
+        if (input.type === "spin") {
+          updates.spinsLeft = currentSpins + 1;
+          // Also give points as a bonus
+          updates.balance = currentBalance + reward;
+          updates.totalEarned = currentTotalEarned + reward;
+        } else {
+          updates.balance = currentBalance + reward;
+          updates.totalEarned = currentTotalEarned + reward;
+        }
+
+        user = await upsertTelegramUser(updates);
 
         await createTransaction({
           telegramId: input.telegramId,
           type: "ad",
           points: reward,
-          metadata: JSON.stringify({ token: input.token }),
+          metadata: JSON.stringify({ token: input.token, adType: input.type }),
         });
 
-        return { success: true, reward, balance: user?.balance };
+        return { 
+          success: true, 
+          reward, 
+          balance: user?.balance, 
+          spinsLeft: user?.spinsLeft 
+        };
       }),
   }),
 

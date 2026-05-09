@@ -143,29 +143,23 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
         throw new Error(tokenData.message || "فشل الحصول على توكن");
       }
 
-      // 2. Initialize Adsgram
+      // 2. Initialize Adsgram (SDK is already loaded in index.html)
       if (!window.Adsgram) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
-          script.async = true;
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Failed to load AdsGram SDK"));
-          document.head.appendChild(script);
-        });
+        throw new Error("AdsGram SDK not loaded. Please check your internet connection.");
       }
 
       const blockId = user.adsgramBlockId || "29281";
-      const AdController = window.Adsgram!.init({ blockId, debug: false });
+      const AdController = window.Adsgram.init({ blockId, debug: false });
       const result = await AdController.show();
 
-      if (result.done) {
-        // 3. Claim reward (this will also reset spinsLeft to 1 in the backend)
-        const claimData = await claimMutation.mutateAsync({
-          telegramId: user.telegramId,
-          token: tokenData.token,
-          initData: window.Telegram?.WebApp?.initData || "",
-        });
+        if (result.done) {
+          // 3. Claim reward (this will also add a spin in the backend)
+          const claimData = await claimMutation.mutateAsync({
+            telegramId: user.telegramId,
+            token: tokenData.token,
+            initData: window.Telegram?.WebApp?.initData || "",
+            type: "spin",
+          });
 
         if (claimData.success) {
           toast({

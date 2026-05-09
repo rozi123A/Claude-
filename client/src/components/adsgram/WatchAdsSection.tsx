@@ -93,20 +93,13 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
         throw new Error(tokenData.message || "فشل الحصول على توكن");
       }
 
-      // 2. Initialize Adsgram
+      // 2. Initialize Adsgram (SDK is already loaded in index.html)
       if (!window.Adsgram) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
-          script.async = true;
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Failed to load AdsGram SDK"));
-          document.head.appendChild(script);
-        });
+        throw new Error("AdsGram SDK not loaded. Please check your internet connection.");
       }
 
       const blockId = user.adsgramBlockId || "29281";
-      const AdController = window.Adsgram!.init({ blockId, debug: false });
+      const AdController = window.Adsgram.init({ blockId, debug: false });
 
       // 3. Show Ad
       const result = await AdController.show();
@@ -117,6 +110,7 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
           telegramId: user.telegramId,
           token: tokenData.token,
           initData: window.Telegram?.WebApp?.initData || "",
+          type: "points",
         });
 
         if (claimData.success) {
