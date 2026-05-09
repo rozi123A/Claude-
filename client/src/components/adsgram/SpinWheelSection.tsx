@@ -133,33 +133,38 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
   const handleWatchAdForSpin = async () => {
     setIsSpinning(true);
     try {
-      // 1. Get token from backend
-      const tokenData = await getTokenMutation.mutateAsync({
+      // 1. Initialize Adsgram immediately
+      const adsgram = window.Adsgram;
+      if (!adsgram) {
+        throw new Error("AdsGram SDK not loaded yet. Please wait a moment.");
+      }
+
+      const blockId = user.adsgramBlockId || "29281";
+      const AdController = adsgram.init({ blockId, debug: false });
+
+      // 2. Start showing ad immediately
+      const adPromise = AdController.show();
+
+      // 3. Get token from backend in parallel
+      const tokenPromise = getTokenMutation.mutateAsync({
         telegramId: user.telegramId,
         initData: window.Telegram?.WebApp?.initData || "",
       });
+
+      const [result, tokenData] = await Promise.all([adPromise, tokenPromise]);
 
       if (!tokenData.success || !tokenData.token) {
         throw new Error(tokenData.message || "فشل الحصول على توكن");
       }
 
-      // 2. Initialize Adsgram (SDK is already loaded in index.html)
-      if (!window.Adsgram) {
-        throw new Error("AdsGram SDK not loaded. Please check your internet connection.");
-      }
-
-      const blockId = user.adsgramBlockId || "29281";
-      const AdController = window.Adsgram.init({ blockId, debug: false });
-      const result = await AdController.show();
-
-        if (result.done) {
-          // 3. Claim reward (this will also add a spin in the backend)
-          const claimData = await claimMutation.mutateAsync({
-            telegramId: user.telegramId,
-            token: tokenData.token,
-            initData: window.Telegram?.WebApp?.initData || "",
-            type: "spin",
-          });
+      if (result.done) {
+        // 4. Claim reward
+        const claimData = await claimMutation.mutateAsync({
+          telegramId: user.telegramId,
+          token: tokenData.token,
+          initData: window.Telegram?.WebApp?.initData || "",
+          type: "spin",
+        });
 
         if (claimData.success) {
           toast({
@@ -285,10 +290,15 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
         <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-gray-400">المحاولات المتبقية</span>
-            <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 1</span>
+            <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 5</span>
           </div>
           <div className="flex gap-2 justify-center">
-            <div className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${user.spinsLeft > 0 ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]" : "bg-slate-800"}`} />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div 
+                key={i}
+                className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < user.spinsLeft ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]" : "bg-slate-800"}`} 
+              />
+            ))}
           </div>
         </div>
 

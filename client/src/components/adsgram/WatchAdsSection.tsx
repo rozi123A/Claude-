@@ -83,26 +83,29 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
     setLoading(true);
 
     try {
-      // 1. Get token from backend
-      const tokenData = await getTokenMutation.mutateAsync({
+      // 1. Initialize Adsgram immediately to ensure popup is not blocked
+      let adsgram = window.Adsgram;
+      if (!adsgram) {
+        throw new Error("AdsGram SDK not loaded yet. Please wait a moment.");
+      }
+
+      const blockId = user.adsgramBlockId || "29281";
+      const AdController = adsgram.init({ blockId, debug: false });
+
+      // 2. Start showing ad immediately (User interaction context)
+      const adPromise = AdController.show();
+
+      // 3. Get token from backend in parallel
+      const tokenPromise = getTokenMutation.mutateAsync({
         telegramId: user.telegramId,
         initData: window.Telegram?.WebApp?.initData || "",
       });
 
+      const [result, tokenData] = await Promise.all([adPromise, tokenPromise]);
+
       if (!tokenData.success || !tokenData.token) {
         throw new Error(tokenData.message || "فشل الحصول على توكن");
       }
-
-      // 2. Initialize Adsgram (SDK is already loaded in index.html)
-      if (!window.Adsgram) {
-        throw new Error("AdsGram SDK not loaded. Please check your internet connection.");
-      }
-
-      const blockId = user.adsgramBlockId || "29281";
-      const AdController = window.Adsgram.init({ blockId, debug: false });
-
-      // 3. Show Ad
-      const result = await AdController.show();
 
       if (result.done) {
         // 4. Claim reward

@@ -65,7 +65,7 @@ function resetDailyIfNeeded(user: any) {
 
   const spinDate = user.spinsDate ? new Date(user.spinsDate).getTime() : 0;
   if (spinDate < today) {
-    updates.spinsLeft = 1; // 1 free spin per day
+    updates.spinsLeft = 5; // 5 free spins per day as per user design
     updates.spinsDate = now;
   }
 
@@ -103,7 +103,7 @@ export const appRouter = router({
             totalEarned: 0,
             todayAds: 0,
             todayAdsDate: now,
-            spinsLeft: 1,
+            spinsLeft: 5,
             spinsDate: now,
             referredBy: input.referredBy && input.referredBy !== input.telegramId ? input.referredBy : null,
           });
