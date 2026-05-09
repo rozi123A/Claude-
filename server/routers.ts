@@ -198,11 +198,15 @@ export const appRouter = router({
         const reward = 100; // Updated to match user's previous config
         const newSpins = user.spinsLeft === 0 ? 1 : user.spinsLeft;
 
+        const currentBalance = Number(user.balance) || 0;
+        const currentTotalEarned = Number(user.totalEarned) || 0;
+        const currentTodayAds = Number(user.todayAds) || 0;
+
         user = await upsertTelegramUser({
           ...user,
-          balance: user.balance + reward,
-          totalEarned: user.totalEarned + reward,
-          todayAds: user.todayAds + 1,
+          balance: currentBalance + reward,
+          totalEarned: currentTotalEarned + reward,
+          todayAds: currentTodayAds + 1,
           lastAdTime: new Date(),
           spinsLeft: newSpins,
         });
@@ -243,11 +247,15 @@ export const appRouter = router({
           random -= weights[i];
         }
 
+        const currentBalance = Number(user.balance) || 0;
+        const currentTotalEarned = Number(user.totalEarned) || 0;
+        const currentSpins = Number(user.spinsLeft) || 0;
+
         user = await upsertTelegramUser({
           ...user,
-          balance: user.balance + prize,
-          totalEarned: user.totalEarned + prize,
-          spinsLeft: user.spinsLeft - 1,
+          balance: currentBalance + prize,
+          totalEarned: currentTotalEarned + prize,
+          spinsLeft: Math.max(0, currentSpins - 1),
         });
 
         await createTransaction({

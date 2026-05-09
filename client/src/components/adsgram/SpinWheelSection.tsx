@@ -144,13 +144,13 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
 
       // 2. Initialize Adsgram
       if (!window.Adsgram) {
-        const script = document.createElement("script");
-        script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
-        script.async = true;
-        document.body.appendChild(script);
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+          script.async = true;
+          script.onload = () => resolve();
           script.onerror = () => reject(new Error("Failed to load AdsGram SDK"));
+          document.head.appendChild(script);
         });
       }
 
@@ -312,7 +312,7 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
             className="w-full h-14 text-lg font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg flex items-center justify-center gap-2"
           >
             <Play className="h-5 w-5" />
-            {isSpinning ? "جاري التحميل..." : "شاهد إعلان للحصول على دورة إضافية 🎡"}
+            {isSpinning ? "جاري التحميل..." : "شاهد إعلان للحصول على دورة إضافية"}
           </Button>
         )}
 
