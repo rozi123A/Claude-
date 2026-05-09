@@ -1,10 +1,17 @@
 import { Telegraf, Markup } from "telegraf";
+import type { Express } from "express";
 import { getTelegramUser, upsertTelegramUser } from "./db";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || process.env.FRONTEND_URL;
+// Public URL where this server is reachable from the internet (for webhook)
+// On Render: set RENDER_EXTERNAL_URL is auto-injected, fall back to WEBHOOK_URL or PUBLIC_URL
+const PUBLIC_URL =
+  process.env.PUBLIC_URL ||
+  process.env.WEBHOOK_URL ||
+  process.env.RENDER_EXTERNAL_URL;
 
-export async function startBot() {
+export async function startBot(app?: Express) {
   if (!BOT_TOKEN) {
     console.warn("[Bot] BOT_TOKEN is not set. Bot will not start.");
     return;
@@ -33,14 +40,14 @@ export async function startBot() {
         });
       }
 
-      const welcomeMessage = `مرحباً بك يا ${firstName}! 🚀\n\n🎮 العب الآن واربح النقاط!\n🚀 كلما لعبت أكثر ربحت أكثر.\n💰 اجمع النقاط يومياً.\n🏆 تحدَّ نفسك واربح المكافآت.\n\nاضغط على الزر أدناه لفتح التطبيق وابدأ الكسب الآن!`;
+      const welcomeMessage = `مرحباً بك يا ${firstName}! 🚀\n\n🎮 العب الآن واربح النقاط!\n🚀 كلما لعبت أكثر ربحت أكثر.\n💰 اجمع النقاط واستبدلها بالجوائز.`;
 
       if (WEBAPP_URL) {
         await ctx.reply(
           welcomeMessage,
           Markup.inlineKeyboard([
             [Markup.button.webApp("فتح التطبيق 📱", WEBAPP_URL)],
-            [Markup.button.url("قناة التحديثات 📢", "https://t.me/ads_reward123")]
+            [Markup.button.url("قناة التحديثات 📢", "https://t.me/ads_reward123")],
           ])
         );
       } else {
@@ -48,7 +55,7 @@ export async function startBot() {
       }
     } catch (error) {
       console.error("[Bot] Error in start command:", error);
-      await ctx.reply("حدث خطأ أثناء تهيئة حسابك. يرجى المحاولة لاحقاً.");
+      try { await ctx.reply("حدث خطأ أثناء تهيئة حسابك. يرجى المحاولة لاحقاً."); } catch (e) { /* ignore */ }
     }
   });
 
@@ -56,34 +63,75 @@ export async function startBot() {
     ctx.reply("استخدم الزر 'فتح التطبيق' للوصول إلى واجهة الكسب الخاصة بك.");
   });
 
-  // Delete webhook and drop pending updates to avoid 409 Conflict errors
+  // Delete webhook first to reduce chance of conflict, but tolerate failures
   try {
-    console.log("[Bot] Attempting to delete webhook...");
+    console.log("[Bot] Attempting to delete webhook (if any)...");
     await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    
-    // Wait for 2 seconds to ensure Telegram processes the deletion
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    await bot.launch({
-      polling: {
-        allowedUpdates: [],
-        dropPendingUpdates: true,
-      }
-    });
-    console.log("[Bot] Telegram bot started successfully");
-  } catch (err: any) {
-    console.error("[Bot] Failed to start Telegram bot:", err);
-    // If it's a conflict, wait longer and retry
-    if (err.response?.error_code === 409) {
-      console.log("[Bot] Conflict detected (409), retrying in 10 seconds...");
-      setTimeout(() => startBot(), 10000);
-    } else {
-      // Retry for other errors too to ensure uptime
-      setTimeout(() => startBot(), 15000);
-    }
+    // brief pause to let Telegram process deletion
+    await new Promise((r) => setTimeout(r, 1000));
+  } catch (err) {
+    console.warn("[Bot] deleteWebhook failed or no webhook present:", err?.message || err);
   }
 
-  // Enable graceful stop
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (isProduction && PUBLIC_URL && app) {
+    // Use webhook mode in production when PUBLIC_URL is set
+    const secretPath = `/telegraf/${bot.secretPathComponent()}`;
+    const webhookUrl = `${PUBLIC_URL.replace(/\/+$/, "")}${secretPath}`;
+
+    // Attach express webhook handler so incoming requests are processed
+    try {
+      app.use(bot.webhookCallback(secretPath));
+    } catch (e) {
+      console.warn("[Bot] Failed to attach webhook callback to express app:", e);
+    }
+
+    try {
+      await bot.telegram.setWebhook(webhookUrl, { drop_pending_updates: true });
+      console.log(`[Bot] ✅ Webhook set to: ${webhookUrl}`);
+    } catch (err) {
+      console.error("[Bot] Failed to set webhook:", err);
+    }
+    return;
+  }
+
+  // Fallback to long polling mode (dev or when PUBLIC_URL missing)
+  if (isProduction) {
+    console.warn(
+      "[Bot] ⚠️ Running in LONG POLLING in production because PUBLIC_URL/RENDER_EXTERNAL_URL is not set. " +
+        "Set RENDER_EXTERNAL_URL or PUBLIC_URL to enable webhook mode (recommended)."
+    );
+  }
+
+  // Before starting polling, check Telegram webhook info to avoid 409
+  try {
+    const info = await bot.telegram.getWebhookInfo();
+    const existing = (info as any)?.url || "";
+    if (existing) {
+      console.warn(`[Bot] Webhook already set on Telegram: ${existing}. Skipping long polling to avoid 409 conflict.`);
+      return;
+    }
+  } catch (err) {
+    console.warn("[Bot] getWebhookInfo failed, proceeding to long polling. Error:", err?.message || err);
+  }
+
+  console.log("[Bot] Starting in long polling mode...");
+  try {
+    await bot.launch();
+    console.log("[Bot] ✅ Telegram bot launched (long polling)");
+  } catch (err: any) {
+    // Detect 409 conflict (another getUpdates or webhook active)
+    const code = err?.response?.error_code || err?.code;
+    const desc = err?.response?.description || err?.description || String(err || "");
+    if (code === 409 || String(desc).includes("getUpdates")) {
+      console.error("[Bot] Failed to start Telegram bot due to 409 conflict: another getUpdates/webhook is active. Skipping polling.", err);
+      return;
+    }
+    console.error("[Bot] Failed to start Telegram bot:", err);
+  }
+
+  // Graceful stop handlers
   process.once("SIGINT", () => bot.stop("SIGINT"));
   process.once("SIGTERM", () => bot.stop("SIGTERM"));
 }
