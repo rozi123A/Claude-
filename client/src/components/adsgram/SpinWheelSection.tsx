@@ -35,6 +35,8 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
   const { toast } = useToast();
   
   const spinMutation = trpc.spin.perform.useMutation();
+  const getTokenMutation = trpc.ads.getToken.useMutation();
+  const claimMutation = trpc.ads.claim.useMutation();
 
   useEffect(() => {
     drawWheel();
@@ -125,6 +127,65 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 1;
     ctx.stroke();
+  };
+
+  const handleWatchAdForSpin = async () => {
+    setIsSpinning(true);
+    try {
+      // 1. Get token from backend
+      const tokenData = await getTokenMutation.mutateAsync({
+        telegramId: user.telegramId,
+        initData: window.Telegram?.WebApp?.initData || "",
+      });
+
+      if (!tokenData.success || !tokenData.token) {
+        throw new Error(tokenData.message || "فشل الحصول على توكن");
+      }
+
+      // 2. Initialize Adsgram
+      if (!window.Adsgram) {
+        const script = document.createElement("script");
+        script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+        script.async = true;
+        document.body.appendChild(script);
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Failed to load AdsGram SDK"));
+        });
+      }
+
+      const blockId = "29281";
+      const AdController = window.Adsgram!.init({ blockId, debug: false });
+      const result = await AdController.show();
+
+      if (result.done) {
+        // 3. Claim reward (this will also reset spinsLeft to 1 in the backend)
+        const claimData = await claimMutation.mutateAsync({
+          telegramId: user.telegramId,
+          token: tokenData.token,
+          initData: window.Telegram?.WebApp?.initData || "",
+        });
+
+        if (claimData.success) {
+          toast({
+            title: "🎉 مبروك!",
+            description: `حصلت على دورة إضافية و ${claimData.reward} نقطة`,
+          });
+          onReward();
+        } else {
+          throw new Error(claimData.message || "فشل استلام المكافأة");
+        }
+      }
+    } catch (error: any) {
+      console.error("AdsGram Error:", error);
+      toast({
+        title: "خطأ في الإعلانات",
+        description: error.message || "تعذر تحميل نظام الإعلانات حالياً",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSpinning(false);
+    }
   };
 
   const handleSpin = async () => {
@@ -246,11 +307,12 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
           </Button>
         ) : (
           <Button
-            onClick={onSwitchToAds}
+            onClick={handleWatchAdForSpin}
+            disabled={isSpinning}
             className="w-full h-14 text-lg font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg flex items-center justify-center gap-2"
           >
             <Play className="h-5 w-5" />
-            شاهد إعلان لتدوير العجلة 🎡
+            {isSpinning ? "جاري التحميل..." : "شاهد إعلان للحصول على دورة إضافية 🎡"}
           </Button>
         )}
 

@@ -92,34 +92,33 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
         throw new Error(tokenData.message || "فشل الحصول على توكن");
       }
 
-      // 2. Initialize Adsgram
-      if (!window.Adsgram) {
-        // Try to load script if not present
-        const script = document.createElement("script");
-        script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
-        script.async = true;
-        document.body.appendChild(script);
-        
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = () => reject(new Error("Failed to load AdsGram SDK"));
-        });
-      }
+	      // 2. Initialize Adsgram
+	      if (!window.Adsgram) {
+	        // Try to load script if not present
+	        const script = document.createElement("script");
+	        script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+	        script.async = true;
+	        document.body.appendChild(script);
+	        
+	        await new Promise((resolve, reject) => {
+	          script.onload = resolve;
+	          script.onerror = () => reject(new Error("Failed to load AdsGram SDK"));
+	        });
+	      }
 
-		      let rawBlockId = import.meta.env.VITE_ADSGRAM_BLOCK_ID || "29281";
-		      // Adsgram SDK expects the blockId as a string, usually just the number
-		      const blockId = rawBlockId.toString();
-		      
-		      const AdController = window.Adsgram!.init({ 
-		        blockId: blockId,
-		        debug: false,
-		        onReward: () => {
-		          console.log("Ad reward triggered");
-		        },
-		        onError: (err) => {
-		          console.error("Adsgram error:", err);
-		        }
-		      });
+	      // Ensure blockId is exactly what user provided
+	      const blockId = "29281";
+	      
+	      const AdController = window.Adsgram!.init({ 
+	        blockId: blockId,
+	        debug: false,
+	        onReward: () => {
+	          console.log("Ad reward triggered");
+	        },
+	        onError: (err) => {
+	          console.error("Adsgram error:", err);
+	        }
+	      });
 
       // 3. Show Ad
       const result = await AdController.show();
