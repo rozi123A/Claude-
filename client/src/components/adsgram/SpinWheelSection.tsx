@@ -32,8 +32,34 @@ const PRIZES = [
 export default function SpinWheelSection({ user, onReward, onSwitchToAds }: SpinWheelSectionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
   const [rotation, setRotation] = useState(0);
   const { toast } = useToast();
+
+  // Pre-load Adsgram SDK
+  useEffect(() => {
+    const initAdsgram = async () => {
+      if (window.Adsgram) {
+        setSdkReady(true);
+        return;
+      }
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+          document.head.appendChild(script);
+        });
+        setSdkReady(true);
+      } catch (e) {
+        console.error("Failed to pre-load AdsGram SDK");
+      }
+    };
+    initAdsgram();
+  }, []);
   
   const spinMutation = trpc.spin.perform.useMutation();
   const getTokenMutation = trpc.ads.getToken.useMutation();
@@ -133,31 +159,31 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
   const handleWatchAdForSpin = async () => {
     setIsSpinning(true);
     try {
-      // 1. Initialize Adsgram immediately
+      // 1. Check if SDK is ready
       const adsgram = window.Adsgram;
       if (!adsgram) {
-        throw new Error("AdsGram SDK not loaded yet. Please wait a moment.");
+        toast({ title: "جاري التجهيز", description: "يتم الآن تحميل نظام الإعلانات، حاول مجدداً خلال ثانية" });
+        setIsSpinning(false);
+        return;
       }
 
       const blockId = user.adsgramBlockId || "29281";
       const AdController = adsgram.init({ blockId, debug: false });
 
-      // 2. Start showing ad immediately
-      const adPromise = AdController.show();
-
-      // 3. Get token from backend in parallel
-      const tokenPromise = getTokenMutation.mutateAsync({
-        telegramId: user.telegramId,
-        initData: window.Telegram?.WebApp?.initData || "",
-      });
-
-      const [result, tokenData] = await Promise.all([adPromise, tokenPromise]);
-
-      if (!tokenData.success || !tokenData.token) {
-        throw new Error(tokenData.message || "فشل الحصول على توكن");
-      }
+      // 2. Show ad immediately
+      const result = await AdController.show();
 
       if (result.done) {
+        // 3. Get token and claim reward after ad is watched
+        const tokenData = await getTokenMutation.mutateAsync({
+          telegramId: user.telegramId,
+          initData: window.Telegram?.WebApp?.initData || "",
+        });
+
+        if (!tokenData.success || !tokenData.token) {
+          throw new Error(tokenData.message || "فشل الحصول على توكن");
+        }
+
         // 4. Claim reward
         const claimData = await claimMutation.mutateAsync({
           telegramId: user.telegramId,

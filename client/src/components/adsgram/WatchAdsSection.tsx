@@ -32,8 +32,34 @@ interface WatchAdsSectionProps {
 
 export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps) {
   const [loading, setLoading] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const { toast } = useToast();
+
+  // Pre-load Adsgram SDK
+  useEffect(() => {
+    const initAdsgram = async () => {
+      if (window.Adsgram) {
+        setSdkReady(true);
+        return;
+      }
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+          document.head.appendChild(script);
+        });
+        setSdkReady(true);
+      } catch (e) {
+        console.error("Failed to pre-load AdsGram SDK");
+      }
+    };
+    initAdsgram();
+  }, []);
   
   const getTokenMutation = trpc.ads.getToken.useMutation();
   const claimMutation = trpc.ads.claim.useMutation();
@@ -83,25 +109,38 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
     setLoading(true);
 
     try {
-      // 1. Initialize Adsgram immediately to ensure popup is not blocked
-      let adsgram = window.Adsgram;
+      // 1. Check if SDK is ready
+      const adsgram = window.Adsgram;
       if (!adsgram) {
-        throw new Error("AdsGram SDK not loaded yet. Please wait a moment.");
+        // One last attempt to load it
+        toast({ title: "جاري التجهيز", description: "يتم الآن تحميل نظام الإعلانات، حاول مجدداً خلال ثانية" });
+        return;
       }
 
       const blockId = user.adsgramBlockId || "29281";
       const AdController = adsgram.init({ blockId, debug: false });
 
-      // 2. Start showing ad immediately (User interaction context)
-      const adPromise = AdController.show();
+      // 2. Show ad immediately (User interaction context)
+      const result = await AdController.show();
 
-      // 3. Get token from backend in parallel
-      const tokenPromise = getTokenMutation.mutateAsync({
-        telegramId: user.telegramId,
-        initData: window.Telegram?.WebApp?.initData || "",
-      });
+      if (result.done) {
+        // 3. Get token and claim reward after ad is watched
+        const tokenData = await getTokenMutation.mutateAsync({
+          telegramId: user.telegramId,
+          initData: window.Telegram?.WebApp?.initData || "",
+        });
 
-      const [result, tokenData] = await Promise.all([adPromise, tokenPromise]);
+        if (!tokenData.success || !tokenData.token) {
+          throw new Error(tokenData.message || "فشل الحصول على توكن");
+        }
+
+        // 4. Claim reward
+        const claimData = await claimMutation.mutateAsync({
+          telegramId: user.telegramId,
+          token: tokenData.token,
+          initData: window.Telegram?.WebApp?.initData || "",
+          type: "points",
+        });
 
       if (!tokenData.success || !tokenData.token) {
         throw new Error(tokenData.message || "فشل الحصول على توكن");
