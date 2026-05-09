@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Alerimport { Zap, Gift, TrendingUp, Wallet, Award, Globe, History } from "lucide-react";
+import { AlertCircle, Zap, Gift, TrendingUp, Wallet, Award, Globe, History } from "lucide-react";
 import { translations, type Language } from "@/lib/i18n";
 import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
 import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
