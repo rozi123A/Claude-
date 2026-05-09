@@ -106,13 +106,20 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
         });
       }
 
-	      let rawBlockId = import.meta.env.VITE_ADSGRAM_BLOCK_ID || "bot-29281";
-	      const blockId = rawBlockId.startsWith("bot-") ? rawBlockId : `bot-${rawBlockId}`;
-	      
-	      const AdController = window.Adsgram!.init({ 
-	        blockId: blockId,
-	        debug: false 
-	      });
+		      let rawBlockId = import.meta.env.VITE_ADSGRAM_BLOCK_ID || "29281";
+		      // Adsgram SDK expects the blockId as a string, usually just the number
+		      const blockId = rawBlockId.toString();
+		      
+		      const AdController = window.Adsgram!.init({ 
+		        blockId: blockId,
+		        debug: false,
+		        onReward: () => {
+		          console.log("Ad reward triggered");
+		        },
+		        onError: (err) => {
+		          console.error("Adsgram error:", err);
+		        }
+		      });
 
       // 3. Show Ad
       const result = await AdController.show();

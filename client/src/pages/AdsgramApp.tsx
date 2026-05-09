@@ -112,11 +112,15 @@ export default function AdsgramApp() {
             telegramId: telegramUser.id,
             initData: initData || "",
             referredBy: startParam ? parseInt(startParam) : undefined,
+          }).catch(err => {
+            console.error("Mutation failed:", err);
+            return { success: false, user: null };
           });
 
-          if (data.success && data.user) {
+          if (data && data.success && data.user) {
             setUser(data.user as UserData);
           } else {
+            console.warn("Using demo user due to API failure or invalid data");
             setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
           }
         } catch (err) {
