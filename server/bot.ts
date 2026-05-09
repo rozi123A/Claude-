@@ -58,10 +58,12 @@ export async function startBot() {
 
   // Delete webhook and drop pending updates to avoid 409 Conflict errors
   try {
+    console.log("[Bot] Attempting to delete webhook...");
     await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    console.log("[Bot] Webhook deleted successfully");
     
-    // Launch with polling options to handle conflicts better
+    // Wait for 2 seconds to ensure Telegram processes the deletion
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     await bot.launch({
       polling: {
         allowedUpdates: [],
@@ -69,12 +71,15 @@ export async function startBot() {
       }
     });
     console.log("[Bot] Telegram bot started successfully");
-  } catch (err) {
+  } catch (err: any) {
     console.error("[Bot] Failed to start Telegram bot:", err);
-    // If it's a conflict, wait and retry once
+    // If it's a conflict, wait longer and retry
     if (err.response?.error_code === 409) {
-      console.log("[Bot] Conflict detected, retrying in 5 seconds...");
-      setTimeout(() => startBot(), 5000);
+      console.log("[Bot] Conflict detected (409), retrying in 10 seconds...");
+      setTimeout(() => startBot(), 10000);
+    } else {
+      // Retry for other errors too to ensure uptime
+      setTimeout(() => startBot(), 15000);
     }
   }
 
