@@ -165,7 +165,7 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
         <div className="p-4 bg-purple-900/30 rounded-lg border border-purple-700/30">
           <p className="text-sm text-gray-300 mb-2">
             اكسب{" "}
-            <span className="font-bold text-yellow-400">10</span>{" "}
+            <span className="font-bold text-yellow-400">100</span>{" "}
             نقاط لكل إعلان
           </p>
           <p className="text-xs text-gray-400">
@@ -197,14 +197,14 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
           ) : user.todayAds >= 50 ? (
             "وصلت للحد اليومي"
           ) : (
-            "▶ مشاهدة إعلان (10 PTS)"
+            "▶ مشاهدة إعلان (100 PTS)"
           )}
         </Button>
 
         <div className="grid grid-cols-2 gap-2 text-center text-xs">
           <div className="p-2 bg-slate-800/50 rounded">
             <p className="text-gray-400">المكافأة</p>
-            <p className="font-bold text-yellow-400">10 PTS</p>
+            <p className="font-bold text-yellow-400">100 PTS</p>
           </div>
           <div className="p-2 bg-slate-800/50 rounded">
             <p className="text-gray-400">الفترة</p>
