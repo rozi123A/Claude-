@@ -73,7 +73,7 @@ export async function startBot(app?: Express) {
   try {
     console.log("[Bot] Force clearing any existing webhook/polling state...");
     await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    // Wait a bit for Telegram to process the deletion
+    // Wait for Telegram to process the deletion
     await new Promise((r) => setTimeout(r, 2000));
   } catch (err: any) {
     console.warn("[Bot] deleteWebhook failed:", err?.message || err);
@@ -108,10 +108,20 @@ export async function startBot(app?: Express) {
   } catch (err: any) {
     const code = err?.response?.error_code || err?.code;
     if (code === 409) {
-      console.error("[Bot] ❌ 409 Conflict: Another instance is still running. Please check other deployments or wait.");
-      isBotStarted = false; // Allow retry if needed
+      console.error("[Bot] ❌ 409 Conflict: Another instance is still running.");
+      console.log("[Bot] Retrying to clear webhook one more time...");
+      try {
+          await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+          await new Promise((r) => setTimeout(r, 5000));
+          await bot.launch({ dropPendingUpdates: true });
+          console.log("[Bot] ✅ Recovered and launched after 409 retry.");
+      } catch (retryErr) {
+          console.error("[Bot] Critical: Still getting 409 after retry. Please check for duplicate deployments.");
+          isBotStarted = false;
+      }
     } else {
       console.error("[Bot] Failed to launch bot:", err);
+      isBotStarted = false;
     }
   }
 

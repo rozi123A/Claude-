@@ -75,7 +75,7 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
     // Start Telegram Bot
-    startBot().catch(err => console.error("[Bot] Error starting bot:", err));
+    startBot(app).catch(err => console.error("[Bot] Error starting bot:", err));
   });
 }
 
