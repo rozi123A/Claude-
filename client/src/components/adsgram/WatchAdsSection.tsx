@@ -112,19 +112,19 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
       // 1. Check if SDK is ready
       const adsgram = window.Adsgram;
       if (!adsgram) {
-        // One last attempt to load it
         toast({ title: "جاري التجهيز", description: "يتم الآن تحميل نظام الإعلانات، حاول مجدداً خلال ثانية" });
+        setLoading(false);
         return;
       }
 
       const blockId = user.adsgramBlockId || "29281";
       const AdController = adsgram.init({ blockId, debug: false });
 
-      // 2. Show ad immediately (User interaction context)
+      // 2. Show ad immediately
       const result = await AdController.show();
 
       if (result.done) {
-        // 3. Get token and claim reward after ad is watched
+        // 3. Get token
         const tokenData = await getTokenMutation.mutateAsync({
           telegramId: user.telegramId,
           initData: window.Telegram?.WebApp?.initData || "",
@@ -134,19 +134,6 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
           throw new Error(tokenData.message || "فشل الحصول على توكن");
         }
 
-        // 4. Claim reward
-        const claimData = await claimMutation.mutateAsync({
-          telegramId: user.telegramId,
-          token: tokenData.token,
-          initData: window.Telegram?.WebApp?.initData || "",
-          type: "points",
-        });
-
-      if (!tokenData.success || !tokenData.token) {
-        throw new Error(tokenData.message || "فشل الحصول على توكن");
-      }
-
-      if (result.done) {
         // 4. Claim reward
         const claimData = await claimMutation.mutateAsync({
           telegramId: user.telegramId,
