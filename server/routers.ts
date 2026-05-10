@@ -214,8 +214,15 @@ export const appRouter = router({
           lastAdTime: new Date(),
         };
 
-        updates.balance = currentBalance + reward;
-        updates.totalEarned = currentTotalEarned + reward;
+        if (input.type === "spin") {
+          updates.spinsLeft = currentSpins + 1;
+          // Also give points as a bonus
+          updates.balance = currentBalance + reward;
+          updates.totalEarned = currentTotalEarned + reward;
+        } else {
+          updates.balance = currentBalance + reward;
+          updates.totalEarned = currentTotalEarned + reward;
+        }
 
         user = await upsertTelegramUser(updates);
 

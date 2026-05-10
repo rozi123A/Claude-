@@ -218,11 +218,7 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
     if (isSpinning) return;
     
     if (user.spinsLeft <= 0) {
-      toast({
-        title: "تنبيه",
-        description: "لقد استهلكت جميع محاولاتك اليومية (5 محاولات). عد غداً للمحاولة مرة أخرى!",
-        variant: "destructive",
-      });
+      // No need for toast here as the button will switch to "Watch Ad"
       return;
     }
 
@@ -337,17 +333,24 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
           </div>
         </div>
 
-        <Button
-          onClick={handleSpin}
-          disabled={isSpinning || user.spinsLeft <= 0}
-          className={`w-full h-14 text-lg font-black transition-all duration-300 ${
-            user.spinsLeft > 0 
-              ? "bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]" 
-              : "bg-slate-800 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          {isSpinning ? "جاري الدوران..." : user.spinsLeft > 0 ? "إبدأ الدوران الآن 🎡" : "انتهت محاولات اليوم"}
-        </Button>
+        {user.spinsLeft > 0 ? (
+          <Button
+            onClick={handleSpin}
+            disabled={isSpinning}
+            className="w-full h-14 text-lg font-black transition-all duration-300 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]"
+          >
+            {isSpinning ? "جاري الدوران..." : "إبدأ الدوران الآن 🎡"}
+          </Button>
+        ) : (
+          <Button
+            onClick={handleWatchAdForSpin}
+            disabled={isSpinning}
+            className="w-full h-14 text-lg font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg flex items-center justify-center gap-2"
+          >
+            <Play className="h-5 w-5" />
+            {isSpinning ? "جاري التحميل..." : "شاهد إعلان للحصول على دورة إضافية"}
+          </Button>
+        )}
 
         <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
           تحصل على 5 محاولات مجانية يومياً
