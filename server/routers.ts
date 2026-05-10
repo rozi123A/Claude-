@@ -65,8 +65,8 @@ function resetDailyIfNeeded(user: any) {
 
   const spinDate = user.spinsDate ? new Date(user.spinsDate).getTime() : 0;
   if (spinDate < today) {
-    updates.spinsLeft = 5; // 5 free spins per day as per user design
-    updates.spinsDate = now;
+    updates.spinsLeft = 5;
+    updates.spinsDate = now.toISOString().split('T')[0]; // Store as YYYY-MM-DD
   }
 
   return updates;
@@ -213,15 +213,8 @@ export const appRouter = router({
           lastAdTime: new Date(),
         };
 
-        if (input.type === "spin") {
-          updates.spinsLeft = currentSpins + 1;
-          // Also give points as a bonus
-          updates.balance = currentBalance + reward;
-          updates.totalEarned = currentTotalEarned + reward;
-        } else {
-          updates.balance = currentBalance + reward;
-          updates.totalEarned = currentTotalEarned + reward;
-        }
+        updates.balance = currentBalance + reward;
+        updates.totalEarned = currentTotalEarned + reward;
 
         user = await upsertTelegramUser(updates);
 
@@ -271,7 +264,7 @@ export const appRouter = router({
         const currentSpins = Number(user.spinsLeft) || 0;
 
         user = await upsertTelegramUser({
-          ...user,
+          telegramId: input.telegramId,
           balance: currentBalance + prize,
           totalEarned: currentTotalEarned + prize,
           spinsLeft: Math.max(0, currentSpins - 1),
