@@ -41,9 +41,9 @@ export const telegramUsers = mysqlTable("telegram_users", {
   balance: bigint("balance", { mode: "number" }).default(0).notNull(),
   totalEarned: bigint("total_earned", { mode: "number" }).default(0).notNull(),
   todayAds: int("today_ads").default(0).notNull(),
-  todayAdsDate: varchar("today_ads_date", { length: 64 }).default(""),
+  todayAdsDate: timestamp("today_ads_date"),
   spinsLeft: int("spins_left").default(5).notNull(),
-  spinsDate: varchar("spins_date", { length: 64 }).default(""),
+  spinsDate: timestamp("spins_date"),
   lastAdTime: timestamp("last_ad_time"),
   completedTasks: text("completed_tasks"), // JSON array
   referredBy: bigint("referred_by", { mode: "number" }),
