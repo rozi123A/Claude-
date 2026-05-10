@@ -60,13 +60,13 @@ function resetDailyIfNeeded(user: any) {
   const adDate = user.todayAdsDate ? new Date(user.todayAdsDate).getTime() : 0;
   if (adDate < today) {
     updates.todayAds = 0;
-    updates.todayAdsDate = now.toISOString().split('T')[0];
+    updates.todayAdsDate = now.toISOString();
   }
 
   const spinDate = user.spinsDate ? new Date(user.spinsDate).getTime() : 0;
   if (spinDate < today) {
     updates.spinsLeft = 5;
-    updates.spinsDate = now.toISOString().split('T')[0]; // Store as YYYY-MM-DD
+    updates.spinsDate = now.toISOString();
   }
 
   return updates;
@@ -93,7 +93,7 @@ export const appRouter = router({
 
         if (!user) {
           // New user registration
-          const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD (10 chars)
+          const dateStr = now.toISOString();
           user = await upsertTelegramUser({
             telegramId: input.telegramId,
             username: verified.username,
