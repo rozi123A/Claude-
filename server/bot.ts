@@ -4,10 +4,12 @@ import { getTelegramUser, upsertTelegramUser } from "./db";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || process.env.FRONTEND_URL;
+// Use WEBAPP_URL as base for webhook if PUBLIC_URL is not set, but prioritize PUBLIC_URL
 const PUBLIC_URL =
   process.env.PUBLIC_URL ||
   process.env.WEBHOOK_URL ||
-  process.env.RENDER_EXTERNAL_URL;
+  process.env.RENDER_EXTERNAL_URL ||
+  (WEBAPP_URL ? new URL(WEBAPP_URL).origin : undefined);
 
 // Global flag to prevent multiple instances in the same process
 let isBotStarted = false;
@@ -26,6 +28,7 @@ export async function startBot(app?: Express) {
 
   const bot = new Telegraf(BOT_TOKEN);
 
+  // Setup bot commands and handlers (Logic remains untouched)
   bot.start(async (ctx) => {
     const telegramId = ctx.from.id;
     const username = ctx.from.username || "";
@@ -69,19 +72,18 @@ export async function startBot(app?: Express) {
     ctx.reply("استخدم الزر 'فتح التطبيق' للوصول إلى واجهة الكسب الخاصة بك.");
   });
 
-  // CRITICAL: Always delete webhook and drop pending updates to clear any old polling/webhook state
+  // CRITICAL: Cleanup any existing sessions
   try {
-    console.log("[Bot] Force clearing any existing webhook/polling state...");
+    console.log("[Bot] Clearing existing webhook/polling state to prevent 409...");
     await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    // Wait for Telegram to process the deletion
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 1000));
   } catch (err: any) {
-    console.warn("[Bot] deleteWebhook failed:", err?.message || err);
+    console.warn("[Bot] Pre-launch cleanup warning:", err?.message);
   }
 
   const isProduction = process.env.NODE_ENV === "production";
 
-  // If we have a PUBLIC_URL and an app, we prefer Webhook mode to avoid 409 conflicts
+  // MANDATORY: Use Webhook in production to avoid 409 Conflict
   if (isProduction && PUBLIC_URL && app) {
     const secretPath = `/telegraf/${bot.secretPathComponent()}`;
     const webhookUrl = `${PUBLIC_URL.replace(/\/+$/, "")}${secretPath}`;
@@ -89,49 +91,32 @@ export async function startBot(app?: Express) {
     try {
       app.use(bot.webhookCallback(secretPath));
       await bot.telegram.setWebhook(webhookUrl, { drop_pending_updates: true });
-      console.log(`[Bot] ✅ Webhook mode enabled: ${webhookUrl}`);
+      console.log(`[Bot] ✅ Webhook mode ENABLED (Anti-409): ${webhookUrl}`);
       return;
     } catch (err) {
-      console.error("[Bot] Failed to set webhook, falling back to polling:", err);
+      console.error("[Bot] Webhook setup failed, this may cause 409:", err);
     }
   }
 
-  // Long Polling Mode
-  console.log("[Bot] Starting in long polling mode...");
-  try {
-    // Launch with drop_pending_updates to clear any backlog that might cause issues
-    await bot.launch({
-      allowedUpdates: ["message", "callback_query"],
-      dropPendingUpdates: true
-    });
-    console.log("[Bot] ✅ Telegram bot launched (long polling)");
-  } catch (err: any) {
-    const code = err?.response?.error_code || err?.code;
-    if (code === 409) {
-      console.error("[Bot] ❌ 409 Conflict: Another instance is still running.");
-      console.log("[Bot] Retrying to clear webhook one more time...");
-      try {
-          await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-          await new Promise((r) => setTimeout(r, 5000));
-          await bot.launch({ dropPendingUpdates: true });
-          console.log("[Bot] ✅ Recovered and launched after 409 retry.");
-      } catch (retryErr) {
-          console.error("[Bot] Critical: Still getting 409 after retry. Please check for duplicate deployments.");
-          isBotStarted = false;
-      }
-    } else {
-      console.error("[Bot] Failed to launch bot:", err);
+  // Fallback to polling only if not in production or webhook failed
+  if (!isProduction) {
+    console.log("[Bot] Starting in long polling mode (Development)...");
+    try {
+      await bot.launch({ dropPendingUpdates: true });
+      console.log("[Bot] ✅ Telegram bot launched (long polling)");
+    } catch (err: any) {
+      console.error("[Bot] Polling launch failed:", err?.message);
       isBotStarted = false;
     }
+  } else {
+    console.error("[Bot] ❌ CRITICAL: Webhook could not be established in production. Polling disabled to prevent 409.");
   }
 
-  // Graceful stop handlers
-  process.once("SIGINT", () => {
-    bot.stop("SIGINT");
+  // Graceful stop
+  const stopBot = (reason: string) => {
+    bot.stop(reason);
     isBotStarted = false;
-  });
-  process.once("SIGTERM", () => {
-    bot.stop("SIGTERM");
-    isBotStarted = false;
-  });
+  };
+  process.once("SIGINT", () => stopBot("SIGINT"));
+  process.once("SIGTERM", () => stopBot("SIGTERM"));
 }
