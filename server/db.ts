@@ -382,3 +382,35 @@ export async function getUserWithdrawals(telegramId: number, limit: number = 10)
     return [];
   }
 }
+
+/**
+ * Get referral statistics for a user
+ */
+export async function getReferralStats(telegramId: number) {
+  const db = await getDb();
+  if (!db) return { count: 0, totalEarned: 0 };
+
+  try {
+    // Count users who were referred by this telegramId
+    const referred = await db.select()
+      .from(telegramUsers)
+      .where(eq(telegramUsers.referredBy, telegramId));
+
+    // Sum all referral transactions earned by this user
+    const referralTxs = await db.select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.telegramId, telegramId),
+          eq(transactions.type, "referral")
+        )
+      );
+
+    const totalEarned = referralTxs.reduce((sum: number, tx: any) => sum + Number(tx.points), 0);
+
+    return { count: referred.length, totalEarned };
+  } catch (error) {
+    console.error("[Database] Failed to get referral stats:", error);
+    return { count: 0, totalEarned: 0 };
+  }
+}
