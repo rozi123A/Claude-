@@ -29,10 +29,67 @@ const PRIZES = [
   { label: "250", value: 250, color: "#FD79A8" },
 ];
 
+// ─── Audio helpers (Web Audio API — no external files needed) ───
+function getAudioCtx(): AudioContext | null {
+  try {
+    return new (window.AudioContext || (window as any).webkitAudioContext)();
+  } catch { return null; }
+}
+
+function playTick(ctx: AudioContext, time: number) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(900, time);
+  osc.frequency.exponentialRampToValueAtTime(400, time + 0.04);
+  gain.gain.setValueAtTime(0.18, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+  osc.start(time);
+  osc.stop(time + 0.05);
+}
+
+function playSpinSound(ctx: AudioContext, duration: number) {
+  // Schedule ticks that slow down as the wheel decelerates
+  const now = ctx.currentTime;
+  let t = now;
+  let interval = 0.06; // fast at start
+  while (t < now + duration) {
+    playTick(ctx, t);
+    t += interval;
+    // slow down exponentially to match ease-out animation
+    const progress = (t - now) / duration;
+    interval = 0.06 + progress * 0.55;
+  }
+}
+
+function playWinSound(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  // Ascending arpeggio: C4 E4 G4 C5
+  const notes = [261.63, 329.63, 392.0, 523.25];
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    const t = now + i * 0.13;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc.start(t);
+    osc.stop(t + 0.4);
+  });
+}
+// ────────────────────────────────────────────────────────────────
+
 export default function SpinWheelSection({ user, onReward, onSwitchToAds }: SpinWheelSectionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const { toast } = useToast();
 
   const spinMutation = trpc.spin.perform.useMutation();
@@ -191,12 +248,14 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
 
   const handleSpin = async () => {
     if (isSpinning) return;
-    
-    if (user.spinsLeft <= 0) {
-      return;
-    }
+    if (user.spinsLeft <= 0) return;
 
     setIsSpinning(true);
+
+    // Init / resume audio context (must happen inside user gesture)
+    if (!audioCtxRef.current) audioCtxRef.current = getAudioCtx();
+    const actx = audioCtxRef.current;
+    if (actx && actx.state === "suspended") await actx.resume();
 
     try {
       const data = await spinMutation.mutateAsync({
@@ -218,13 +277,16 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
       const segmentAngle = (2 * Math.PI) / PRIZES.length;
       const startRotation = rotation;
       
-      const targetPrizeRotation = - (prizeIndex * segmentAngle + segmentAngle / 2) - Math.PI / 2;
+      const targetPrizeRotation = -(prizeIndex * segmentAngle + segmentAngle / 2) - Math.PI / 2;
       const currentRotationNormalized = startRotation % (Math.PI * 2);
       const extraSpins = 8 * Math.PI * 2;
       const targetRotation = startRotation + extraSpins + (targetPrizeRotation - currentRotationNormalized);
 
-      const startTime = Date.now();
       const duration = 4000;
+      const startTime = Date.now();
+
+      // Play spin sound
+      if (actx) playSpinSound(actx, duration / 1000);
 
       const animate = () => {
         const elapsed = Date.now() - startTime;
@@ -236,6 +298,9 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
+          // Play win sound
+          if (actx) playWinSound(actx);
+
           toast({
             title: "🎉 مبروك!",
             description: `لقد ربحت ${data.prize} نقطة!`,
