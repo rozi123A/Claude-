@@ -153,7 +153,7 @@ export const appRouter = router({
             starsRate,
             minWithdraw,
             adsgramBlockId: ENV.adsgramBlockId,
-            lastAdTime: user?.lastAdTime?.getTime() || null,
+            lastAdTime: user?.lastAdTime ? new Date(user.lastAdTime).getTime() : null,
           },
         };
       }),
