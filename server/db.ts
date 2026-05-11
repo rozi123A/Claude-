@@ -363,3 +363,22 @@ export async function getTransactions(telegramId: number, limit: number = 20) {
     return [];
   }
 }
+
+/**
+ * Get withdrawals for a specific user
+ */
+export async function getUserWithdrawals(telegramId: number, limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select()
+      .from(withdrawals)
+      .where(eq(withdrawals.telegramId, telegramId))
+      .orderBy(desc(withdrawals.createdAt))
+      .limit(limit);
+  } catch (error) {
+    console.error("[Database] Failed to get user withdrawals:", error);
+    return [];
+  }
+}
