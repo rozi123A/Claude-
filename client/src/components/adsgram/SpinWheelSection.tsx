@@ -14,7 +14,7 @@ interface UserData {
 
 interface SpinWheelSectionProps {
   user: UserData;
-  onReward: () => void;
+  onReward: (update?: { balance: number; spinsLeft: number; totalEarned?: number }) => void;
   onSwitchToAds: () => void;
 }
 
@@ -32,35 +32,9 @@ const PRIZES = [
 export default function SpinWheelSection({ user, onReward, onSwitchToAds }: SpinWheelSectionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
   const [rotation, setRotation] = useState(0);
   const { toast } = useToast();
 
-  // Pre-load Adsgram SDK
-  useEffect(() => {
-    const initAdsgram = async () => {
-      if (window.Adsgram) {
-        setSdkReady(true);
-        return;
-      }
-
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
-          script.async = true;
-          script.onload = () => resolve();
-          script.onerror = () => reject();
-          document.head.appendChild(script);
-        });
-        setSdkReady(true);
-      } catch (e) {
-        console.error("Failed to pre-load AdsGram SDK");
-      }
-    };
-    initAdsgram();
-  }, []);
-  
   const spinMutation = trpc.spin.perform.useMutation();
   const getTokenMutation = trpc.ads.getToken.useMutation();
   const claimMutation = trpc.ads.claim.useMutation();
@@ -84,7 +58,6 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw Outer Glow/Ring
     ctx.beginPath();
     ctx.arc(cx, cy, r + 5, 0, 2 * Math.PI);
     ctx.fillStyle = "#2d3436";
@@ -93,7 +66,6 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Draw segments
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(rotation);
@@ -124,7 +96,6 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
 
     ctx.restore();
 
-    // Center Hub
     const gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 30);
     gradient.addColorStop(0, "#f1c40f");
     gradient.addColorStop(1, "#e67e22");
@@ -143,7 +114,6 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
     ctx.textBaseline = "middle";
     ctx.fillText("GO", cx, cy);
 
-    // Pointer
     ctx.beginPath();
     ctx.moveTo(cx - 10, cy - r - 5);
     ctx.lineTo(cx + 10, cy - r - 5);
@@ -157,24 +127,26 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
   };
 
   const handleWatchAdForSpin = async () => {
+    if (isSpinning) return;
     setIsSpinning(true);
     try {
-      // 1. Check if SDK is ready
       const adsgram = window.Adsgram;
       if (!adsgram) {
-        toast({ title: "جاري التجهيز", description: "يتم الآن تحميل نظام الإعلانات، حاول مجدداً خلال ثانية" });
-        setIsSpinning(false);
-        return;
+        const script = document.createElement("script");
+        script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+        script.async = true;
+        await new Promise<void>((resolve, reject) => {
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("فشل تحميل SDK"));
+          document.head.appendChild(script);
+        });
       }
 
       const blockId = user.adsgramBlockId || "29281";
-      const AdController = adsgram.init({ blockId, debug: false });
-
-      // 2. Show ad immediately
+      const AdController = window.Adsgram!.init({ blockId, debug: false });
       const result = await AdController.show();
 
       if (result.done) {
-        // 3. Get token and claim reward after ad is watched
         const tokenData = await getTokenMutation.mutateAsync({
           telegramId: user.telegramId,
           initData: window.Telegram?.WebApp?.initData || "",
@@ -184,7 +156,6 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
           throw new Error(tokenData.message || "فشل الحصول على توكن");
         }
 
-        // 4. Claim reward
         const claimData = await claimMutation.mutateAsync({
           telegramId: user.telegramId,
           token: tokenData.token,
@@ -197,7 +168,11 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
             title: "🎉 مبروك!",
             description: `حصلت على دورة إضافية و ${claimData.reward} نقطة`,
           });
-          onReward();
+          onReward(
+            claimData.balance !== undefined && claimData.spinsLeft !== undefined
+              ? { balance: Number(claimData.balance), spinsLeft: Number(claimData.spinsLeft) }
+              : undefined
+          );
         } else {
           throw new Error(claimData.message || "فشل استلام المكافأة");
         }
@@ -218,7 +193,6 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
     if (isSpinning) return;
     
     if (user.spinsLeft <= 0) {
-      // No need for toast here as the button will switch to "Watch Ad"
       return;
     }
 
@@ -242,11 +216,12 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
 
       const prizeIndex = PRIZES.findIndex((p) => p.value === data.prize);
       const segmentAngle = (2 * Math.PI) / PRIZES.length;
+      const startRotation = rotation;
       
       const targetPrizeRotation = - (prizeIndex * segmentAngle + segmentAngle / 2) - Math.PI / 2;
-      const currentRotationNormalized = rotation % (Math.PI * 2);
+      const currentRotationNormalized = startRotation % (Math.PI * 2);
       const extraSpins = 8 * Math.PI * 2;
-      const targetRotation = rotation + extraSpins + (targetPrizeRotation - currentRotationNormalized);
+      const targetRotation = startRotation + extraSpins + (targetPrizeRotation - currentRotationNormalized);
 
       const startTime = Date.now();
       const duration = 4000;
@@ -255,7 +230,7 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         const easeOut = 1 - Math.pow(1 - progress, 4);
-        const currentRotation = rotation + (targetRotation - rotation) * easeOut;
+        const currentRotation = startRotation + (targetRotation - startRotation) * easeOut;
         setRotation(currentRotation);
 
         if (progress < 1) {
@@ -265,7 +240,11 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
             title: "🎉 مبروك!",
             description: `لقد ربحت ${data.prize} نقطة!`,
           });
-          onReward();
+          onReward(
+            data.balance !== undefined && data.spinsLeft !== undefined
+              ? { balance: Number(data.balance), spinsLeft: Number(data.spinsLeft) }
+              : undefined
+          );
           setIsSpinning(false);
         }
       };
