@@ -1,7 +1,17 @@
 import { bigint, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
+/**
+ * Core user table backing auth flow.
+ * Extend this file with additional tables as your product grows.
+ * Columns use camelCase to match both database fields and generated types.
+ */
 export const users = mysqlTable("users", {
+  /**
+   * Surrogate primary key. Auto-incremented numeric value managed by the database.
+   * Use this for relations between tables.
+   */
   id: int("id").autoincrement().primaryKey(),
+  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -15,6 +25,12 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ===== ADSGRAM TABLES =====
+
+/**
+ * Telegram Users table for Adsgram Mini App
+ * Stores user information from Telegram
+ */
 export const telegramUsers = mysqlTable("telegram_users", {
   id: int("id").autoincrement().primaryKey(),
   telegramId: bigint("telegram_id", { mode: "number" }).notNull().unique(),
@@ -29,8 +45,7 @@ export const telegramUsers = mysqlTable("telegram_users", {
   spinsLeft: int("spins_left").default(5).notNull(),
   spinsDate: varchar("spins_date", { length: 100 }),
   lastAdTime: varchar("last_ad_time", { length: 100 }),
-  lastDailyGift: varchar("last_daily_gift", { length: 100 }),
-  completedTasks: text("completed_tasks"),
+  completedTasks: text("completed_tasks"), // JSON array
   referredBy: bigint("referred_by", { mode: "number" }),
   referralCode: varchar("referral_code", { length: 32 }).unique(),
   isBanned: mysqlEnum("is_banned", ["true", "false"]).default("false").notNull(),
@@ -41,18 +56,24 @@ export const telegramUsers = mysqlTable("telegram_users", {
 export type TelegramUser = typeof telegramUsers.$inferSelect;
 export type InsertTelegramUser = typeof telegramUsers.$inferInsert;
 
+/**
+ * Transactions table - tracks all user earnings
+ */
 export const transactions = mysqlTable("transactions", {
   id: int("id").autoincrement().primaryKey(),
   telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
-  type: mysqlEnum("type", ["ad", "spin", "withdraw", "task", "bonus", "referral", "daily_gift"]).notNull(),
+  type: mysqlEnum("type", ["ad", "spin", "withdraw", "task", "bonus", "referral"]).notNull(),
   points: bigint("points", { mode: "number" }).notNull(),
-  metadata: text("metadata"),
+  metadata: text("metadata"), // JSON
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 
+/**
+ * Withdrawals table - tracks withdrawal requests
+ */
 export const withdrawals = mysqlTable("withdrawals", {
   id: int("id").autoincrement().primaryKey(),
   telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
@@ -69,6 +90,9 @@ export const withdrawals = mysqlTable("withdrawals", {
 export type Withdrawal = typeof withdrawals.$inferSelect;
 export type InsertWithdrawal = typeof withdrawals.$inferInsert;
 
+/**
+ * Ad Tokens table - one-time use tokens for ads
+ */
 export const adTokens = mysqlTable("ad_tokens", {
   id: int("id").autoincrement().primaryKey(),
   token: varchar("token", { length: 255 }).notNull().unique(),
@@ -81,10 +105,13 @@ export const adTokens = mysqlTable("ad_tokens", {
 export type AdToken = typeof adTokens.$inferSelect;
 export type InsertAdToken = typeof adTokens.$inferInsert;
 
+/**
+ * Settings table - app configuration
+ */
 export const settings = mysqlTable("settings", {
   id: int("id").autoincrement().primaryKey(),
   key: varchar("key", { length: 100 }).notNull().unique(),
-  value: text("value"),
+  value: text("value"), // JSON
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
