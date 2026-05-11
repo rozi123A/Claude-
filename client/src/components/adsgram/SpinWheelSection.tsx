@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Gift, Sparkles, Play } from "lucide-react";
+import { Gift, Sparkles, Play, Tv2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
@@ -313,27 +313,40 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
         </div>
 
         {user.spinsLeft > 0 ? (
-          <Button
-            onClick={handleSpin}
-            disabled={isSpinning}
-            className="w-full h-14 text-lg font-black transition-all duration-300 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]"
-          >
-            {isSpinning ? "جاري الدوران..." : "إبدأ الدوران الآن 🎡"}
-          </Button>
+          <>
+            <Button
+              onClick={handleSpin}
+              disabled={isSpinning}
+              className="w-full h-14 text-lg font-black transition-all duration-300 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]"
+            >
+              {isSpinning ? "جاري الدوران..." : "إبدأ الدوران الآن 🎡"}
+            </Button>
+            <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
+              تحصل على 5 محاولات مجانية يومياً
+            </p>
+          </>
         ) : (
-          <Button
-            onClick={handleWatchAdForSpin}
-            disabled={isSpinning}
-            className="w-full h-14 text-lg font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg flex items-center justify-center gap-2"
-          >
-            <Play className="h-5 w-5" />
-            {isSpinning ? "جاري التحميل..." : "شاهد إعلان للحصول على دورة إضافية"}
-          </Button>
+          <div className="space-y-3">
+            <div className="bg-slate-800/60 border border-purple-700/40 rounded-xl p-4 text-center space-y-1">
+              <p className="text-yellow-400 font-bold text-sm">انتهت دوراتك اليومية!</p>
+              <p className="text-gray-400 text-xs">شاهد إعلاناً قصيراً للحصول على دورة إضافية</p>
+            </div>
+            <Button
+              onClick={handleWatchAdForSpin}
+              disabled={isSpinning}
+              className="w-full h-14 text-base font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-[0_4px_20px_rgba(139,92,246,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2"
+            >
+              {isSpinning ? (
+                <><span className="animate-spin">⏳</span> جاري تحميل الإعلان...</>
+              ) : (
+                <><Tv2 className="h-5 w-5" /> شاهد إعلان واربح دورة 🎡</>
+              )}
+            </Button>
+            <p className="text-[10px] text-gray-500 text-center tracking-widest font-bold">
+              تجدد الدورات المجانية كل يوم
+            </p>
+          </div>
         )}
-
-        <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
-          تحصل على 5 محاولات مجانية يومياً
-        </p>
       </CardContent>
     </Card>
   );
