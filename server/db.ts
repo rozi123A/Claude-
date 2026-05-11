@@ -120,20 +120,34 @@ export async function upsertTelegramUser(user: InsertTelegramUser) {
     if (user.lastName !== undefined) updateSet.lastName = user.lastName;
     if (user.photoUrl !== undefined) updateSet.photoUrl = user.photoUrl;
 
+    // Ensure date-only fields never exceed 10 chars (YYYY-MM-DD) for varchar(10) columns
+    const safeDate = (val: any): string | null => {
+      if (val === null || val === undefined) return null;
+      if (val instanceof Date) return val.toISOString().split("T")[0];
+      const s = String(val);
+      return s.substring(0, 10);
+    };
+
     // Update balance and earnings
     if (user.balance !== undefined) updateSet.balance = user.balance;
     if (user.totalEarned !== undefined) updateSet.totalEarned = user.totalEarned;
     if (user.todayAds !== undefined) updateSet.todayAds = user.todayAds;
-    if (user.todayAdsDate !== undefined) updateSet.todayAdsDate = user.todayAdsDate;
+    if (user.todayAdsDate !== undefined) updateSet.todayAdsDate = safeDate(user.todayAdsDate);
     if (user.spinsLeft !== undefined) updateSet.spinsLeft = user.spinsLeft;
-    if (user.spinsDate !== undefined) updateSet.spinsDate = user.spinsDate;
+    if (user.spinsDate !== undefined) updateSet.spinsDate = safeDate(user.spinsDate);
     if (user.lastAdTime !== undefined) updateSet.lastAdTime = user.lastAdTime;
     if (user.completedTasks !== undefined) updateSet.completedTasks = user.completedTasks;
     if (user.referredBy !== undefined) updateSet.referredBy = user.referredBy;
     if (user.referralCode !== undefined) updateSet.referralCode = user.referralCode;
     if (user.isBanned !== undefined) updateSet.isBanned = user.isBanned;
 
-    await db.insert(telegramUsers).values(user).onDuplicateKeyUpdate({
+    const safeUser = {
+      ...user,
+      todayAdsDate: user.todayAdsDate !== undefined ? safeDate(user.todayAdsDate) : undefined,
+      spinsDate: user.spinsDate !== undefined ? safeDate(user.spinsDate) : undefined,
+    };
+
+    await db.insert(telegramUsers).values(safeUser).onDuplicateKeyUpdate({
       set: updateSet,
     });
     return await getTelegramUser(user.telegramId!);
