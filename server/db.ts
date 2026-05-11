@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, telegramUsers, transactions, withdrawals, adTokens, settings, InsertTelegramUser, InsertTransaction, InsertWithdrawal, InsertAdToken, InsertSetting } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -356,7 +356,7 @@ export async function getTransactions(telegramId: number, limit: number = 20) {
     return await db.select()
       .from(transactions)
       .where(eq(transactions.telegramId, telegramId))
-      .orderBy(transactions.createdAt)
+      .orderBy(desc(transactions.createdAt))
       .limit(limit);
   } catch (error) {
     console.error("[Database] Failed to get transactions:", error);
