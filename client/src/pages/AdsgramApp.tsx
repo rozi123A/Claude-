@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,6 @@ export default function AdsgramApp() {
     setLang(langs[nextIndex]);
   };
   
-  // استخدام tRPC للاتصال بالسيرفر
   const getUserMutation = trpc.telegram.getUser.useMutation();
 
   useEffect(() => {
@@ -101,7 +100,7 @@ export default function AdsgramApp() {
 
         const initData = tg.initData;
         const telegramUser = tg.initDataUnsafe?.user;
-        const startParam = tg.initDataUnsafe?.start_param; // Get referral code from start param
+        const startParam = tg.initDataUnsafe?.start_param;
 
         if (!telegramUser) {
           setUser(DEFAULT_DEMO_USER);
@@ -138,6 +137,34 @@ export default function AdsgramApp() {
       setLoading(false);
     }
   };
+
+  const refreshUser = useCallback(async (partialUpdate?: Partial<UserData>) => {
+    if (partialUpdate) {
+      setUser(prev => prev ? { ...prev, ...partialUpdate } : prev);
+    }
+
+    try {
+      if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+        const telegramUser = tg.initDataUnsafe?.user;
+        if (!telegramUser) return;
+
+        const data = await getUserMutation.mutateAsync({
+          telegramId: telegramUser.id,
+          initData: tg.initData || "",
+        }).catch(err => {
+          console.error("Refresh failed:", err);
+          return { success: false, user: null };
+        });
+
+        if (data && data.success && data.user) {
+          setUser(data.user as UserData);
+        }
+      }
+    } catch (err) {
+      console.error("Error refreshing user:", err);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -266,19 +293,22 @@ export default function AdsgramApp() {
             </TabsContent>
 
             <TabsContent value="ads" className="outline-none">
-              <WatchAdsSection user={safeUser} onReward={() => initializeTelegramApp()} />
+              <WatchAdsSection 
+                user={safeUser} 
+                onReward={(update) => refreshUser(update)} 
+              />
             </TabsContent>
 
             <TabsContent value="spin" className="outline-none">
               <SpinWheelSection 
                 user={safeUser} 
-                onReward={() => initializeTelegramApp()} 
+                onReward={(update) => refreshUser(update)}
                 onSwitchToAds={() => setActiveTab("ads")}
               />
             </TabsContent>
 
             <TabsContent value="withdraw" className="outline-none">
-              <WithdrawSection user={safeUser} onSuccess={() => initializeTelegramApp()} />
+              <WithdrawSection user={safeUser} onSuccess={() => refreshUser()} />
             </TabsContent>
           </div>
         </Tabs>
