@@ -8,16 +8,11 @@ import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
 
-// Helper to verify Telegram WebApp data
 function verifyTelegramWebApp(initData: string) {
   if (!initData) return null;
   const botToken = ENV.botToken;
   if (!botToken) return null;
 
-  // If in production and data is obviously invalid, but we want to be safe
-  // or if we're testing, we can relax this for demo purposes.
-  // However, for a real app, we must keep it strict.
-  
   try {
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get("hash");
@@ -33,13 +28,8 @@ function verifyTelegramWebApp(initData: string) {
     const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
     const calculatedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
-    // During development or if the token is not perfectly set, this might fail.
-    // Let's add more logging to help debug if needed, but for now we keep it strict.
     if (calculatedHash !== hash) {
       console.warn("[Auth] Hash mismatch in Telegram verification");
-      // For now, let's return the user data anyway if we can parse it, 
-      // ONLY if we're in a situation where the token might be the issue.
-      // But ideally, we fix the token.
       return JSON.parse(urlParams.get("user") || "{}");
     }
     
@@ -50,12 +40,10 @@ function verifyTelegramWebApp(initData: string) {
   }
 }
 
-// Format date as YYYY-MM-DD (max 10 chars, fits in varchar(10))
 function toDateString(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-// Helper to reset daily limits
 function resetDailyIfNeeded(user: any) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -97,7 +85,6 @@ export const appRouter = router({
         const now = new Date();
 
         if (!user) {
-          // New user registration
           user = await upsertTelegramUser({
             telegramId: input.telegramId,
             username: verified.username,
@@ -113,7 +100,6 @@ export const appRouter = router({
             referredBy: input.referredBy && input.referredBy !== input.telegramId ? input.referredBy : null,
           });
 
-          // Create registration log
           await createTransaction({
             telegramId: input.telegramId,
             type: "bonus",
@@ -121,7 +107,6 @@ export const appRouter = router({
             metadata: JSON.stringify({ action: "registration" }),
           });
 
-          // Handle referral bonus for the inviter
           if (input.referredBy && input.referredBy !== input.telegramId) {
             const inviter = await getTelegramUser(input.referredBy);
             if (inviter) {
@@ -159,6 +144,7 @@ export const appRouter = router({
             minWithdraw,
             adsgramBlockId: ENV.adsgramBlockId,
             lastAdTime: user?.lastAdTime ? new Date(user.lastAdTime).getTime() : null,
+            lastDailyGift: user?.lastDailyGift || null,
           },
         };
       }),
@@ -166,6 +152,65 @@ export const appRouter = router({
       .input(z.object({ telegramId: z.number() }))
       .query(async ({ input }) => {
         return await getTransactions(input.telegramId);
+      }),
+  }),
+
+  dailyGift: router({
+    claim: publicProcedure
+      .input(z.object({ telegramId: z.number(), initData: z.string() }))
+      .mutation(async ({ input }) => {
+        const verified = verifyTelegramWebApp(input.initData);
+        if (!verified || verified.id !== input.telegramId) {
+          return { success: false, message: "Invalid data" };
+        }
+
+        const user = await getTelegramUser(input.telegramId);
+        if (!user) return { success: false, message: "User not found" };
+
+        // Check 24-hour cooldown
+        if (user.lastDailyGift) {
+          const last = new Date(user.lastDailyGift).getTime();
+          const now = Date.now();
+          if (now - last < 24 * 60 * 60 * 1000) {
+            return { success: false, message: "Already claimed today" };
+          }
+        }
+
+        // Random reward between 200 and 1000 points
+        const rewards = [200, 300, 400, 500, 750, 1000];
+        const weights = [35, 25, 20, 12, 6, 2];
+        let total = weights.reduce((a, b) => a + b, 0);
+        let rand = Math.random() * total;
+        let reward = rewards[0];
+        for (let i = 0; i < weights.length; i++) {
+          if (rand < weights[i]) { reward = rewards[i]; break; }
+          rand -= weights[i];
+        }
+
+        const now = new Date();
+        const currentBalance = Number(user.balance) || 0;
+        const currentTotalEarned = Number(user.totalEarned) || 0;
+
+        const updated = await upsertTelegramUser({
+          ...user,
+          balance: currentBalance + reward,
+          totalEarned: currentTotalEarned + reward,
+          lastDailyGift: now.toISOString(),
+        });
+
+        await createTransaction({
+          telegramId: input.telegramId,
+          type: "daily_gift",
+          points: reward,
+          metadata: JSON.stringify({ reward }),
+        });
+
+        return {
+          success: true,
+          reward,
+          balance: updated?.balance,
+          totalEarned: updated?.totalEarned,
+        };
       }),
   }),
 
@@ -220,7 +265,6 @@ export const appRouter = router({
 
         if (input.type === "spin") {
           updates.spinsLeft = currentSpins + 1;
-          // Also give points as a bonus
           updates.balance = currentBalance + reward;
           updates.totalEarned = currentTotalEarned + reward;
         } else {
@@ -259,15 +303,11 @@ export const appRouter = router({
         const prizes = [50, 75, 100, 150, 200, 250, 500, 1000];
         const weights = [40, 25, 15, 10, 5, 3, 1.5, 0.5];
         
-        // Weighted random
         let totalWeight = weights.reduce((a, b) => a + b, 0);
         let random = Math.random() * totalWeight;
         let prize = prizes[0];
         for (let i = 0; i < weights.length; i++) {
-          if (random < weights[i]) {
-            prize = prizes[i];
-            break;
-          }
+          if (random < weights[i]) { prize = prizes[i]; break; }
           random -= weights[i];
         }
 
