@@ -42,8 +42,40 @@ const DEFAULT_DEMO_USER: UserData = {
   lastAdTime: null,
 };
 
+function txLabel(type: string, meta: string | null, t: any): string {
+  if (type === "ad") return t.type_ad;
+  if (type === "spin") return t.type_spin;
+  if (type === "referral") return t.type_ref;
+  if (type === "withdraw") return t.type_withdraw;
+  if (type === "bonus") {
+    try {
+      const m = JSON.parse(meta || "{}");
+      if (m.action === "daily_gift") return t.type_daily ?? "🎁 هدية يومية";
+      if (m.action === "registration") return t.type_reg;
+    } catch {}
+    return t.type_reg;
+  }
+  if (type === "task") return "✅ مهمة";
+  return t.type_reg;
+}
+
+function txIcon(type: string, meta: string | null): string {
+  if (type === "ad") return "📺";
+  if (type === "spin") return "🎡";
+  if (type === "referral") return "👥";
+  if (type === "withdraw") return "💸";
+  if (type === "bonus") {
+    try { if (JSON.parse(meta || "{}").action === "daily_gift") return "🎁"; } catch {}
+    return "🎉";
+  }
+  return "⭐";
+}
+
 function ActivityLog({ telegramId, lang }: { telegramId: number, lang: Language }) {
-  const { data: transactions, isLoading } = trpc.telegram.getTransactions.useQuery({ telegramId });
+  const { data: transactions, isLoading } = trpc.telegram.getTransactions.useQuery(
+    { telegramId },
+    { refetchInterval: 10000, refetchOnWindowFocus: true }
+  );
   const t = translations[lang];
 
   if (isLoading) return <div className="text-center py-4 text-xs text-gray-500">Loading...</div>;
@@ -53,17 +85,17 @@ function ActivityLog({ telegramId, lang }: { telegramId: number, lang: Language 
     <div className="space-y-2">
       {transactions.map((tx: any) => (
         <div key={tx.id} className="flex justify-between items-center p-2 bg-slate-800/30 rounded border border-slate-800/50">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-gray-300">
-              {tx.type === "ad" ? t.type_ad : 
-               tx.type === "spin" ? t.type_spin : 
-               tx.type === "referral" ? t.type_ref : 
-               tx.type === "withdraw" ? t.type_withdraw : t.type_reg}
-            </span>
-            <span className="text-[8px] text-gray-500">{new Date(tx.createdAt).toLocaleString()}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm">{txIcon(tx.type, tx.metadata)}</span>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-gray-300">
+                {txLabel(tx.type, tx.metadata, t)}
+              </span>
+              <span className="text-[8px] text-gray-500">{new Date(tx.createdAt).toLocaleString()}</span>
+            </div>
           </div>
-          <span className={`text-xs font-black ${tx.points >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {tx.points >= 0 ? '+' : ''}{tx.points}
+          <span className={`text-xs font-black ${tx.points > 0 ? 'text-green-400' : tx.points < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+            {tx.points > 0 ? '+' : ''}{tx.points !== 0 ? tx.points : '—'}
           </span>
         </div>
       ))}
