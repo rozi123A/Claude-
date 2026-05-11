@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Zap, Gift, TrendingUp, Wallet, Award, Globe, History } from "lucide-react";
+import { Zap, Gift, TrendingUp, Wallet, Globe, History } from "lucide-react";
 import { translations, type Language } from "@/lib/i18n";
 import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
 import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
 import WithdrawSection from "@/components/adsgram/WithdrawSection";
 import ReferralSection from "@/components/adsgram/ReferralSection";
+import DailyGiftBox from "@/components/adsgram/DailyGiftBox";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
@@ -24,6 +25,7 @@ interface UserData {
   adCooldown: number;
   adsgramBlockId: string;
   lastAdTime: number | null;
+  lastDailyGift: string | null;
 }
 
 const DEFAULT_DEMO_USER: UserData = {
@@ -39,6 +41,7 @@ const DEFAULT_DEMO_USER: UserData = {
   adCooldown: 30,
   adsgramBlockId: "29281",
   lastAdTime: null,
+  lastDailyGift: null,
 };
 
 function ActivityLog({ telegramId, lang }: { telegramId: number, lang: Language }) {
@@ -57,7 +60,8 @@ function ActivityLog({ telegramId, lang }: { telegramId: number, lang: Language 
               {tx.type === "ad" ? t.type_ad : 
                tx.type === "spin" ? t.type_spin : 
                tx.type === "referral" ? t.type_ref : 
-               tx.type === "withdraw" ? t.type_withdraw : t.type_reg}
+               tx.type === "withdraw" ? t.type_withdraw :
+               tx.type === "daily_gift" ? t.type_daily : t.type_reg}
             </span>
             <span className="text-[8px] text-gray-500">{new Date(tx.createdAt).toLocaleString()}</span>
           </div>
@@ -121,11 +125,9 @@ export default function AdsgramApp() {
           if (data && data.success && data.user) {
             setUser(data.user as UserData);
           } else {
-            console.warn("Using demo user due to API failure or invalid data");
             setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
           }
         } catch (err) {
-          console.error("tRPC Error:", err);
           setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
         }
       } else {
@@ -152,10 +154,7 @@ export default function AdsgramApp() {
         const data = await getUserMutation.mutateAsync({
           telegramId: telegramUser.id,
           initData: tg.initData || "",
-        }).catch(err => {
-          console.error("Refresh failed:", err);
-          return { success: false, user: null };
-        });
+        }).catch(() => ({ success: false, user: null }));
 
         if (data && data.success && data.user) {
           setUser(data.user as UserData);
@@ -228,6 +227,29 @@ export default function AdsgramApp() {
           </CardContent>
         </Card>
 
+        {/* Daily Gift Section */}
+        <Card className="bg-slate-900/60 border border-purple-800/40 rounded-xl overflow-hidden">
+          <div style={{
+            background: "linear-gradient(135deg, rgba(88,28,135,0.4) 0%, rgba(49,46,129,0.4) 100%)",
+            borderBottom: "1px solid rgba(147,51,234,0.2)",
+          }} className="p-3">
+            <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
+              <Gift className="h-4 w-4 text-yellow-400" />
+              {t.daily_gift_title}
+            </CardTitle>
+          </div>
+          <CardContent className="p-4 flex justify-center">
+            <DailyGiftBox
+              telegramId={safeUser.telegramId}
+              lastDailyGift={safeUser.lastDailyGift}
+              lang={lang}
+              onClaim={(update) => {
+                setUser(prev => prev ? { ...prev, ...update } : prev);
+              }}
+            />
+          </CardContent>
+        </Card>
+
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
@@ -278,7 +300,6 @@ export default function AdsgramApp() {
               
               <ReferralSection user={safeUser} lang={lang} />
 
-              {/* Activity Log Section */}
               <Card className="bg-slate-900/40 border-slate-800 rounded-xl">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
