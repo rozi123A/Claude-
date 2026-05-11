@@ -9,4 +9,5 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   botToken: process.env.BOT_TOKEN ?? "",
   adsgramBlockId: process.env.ADSGRAM_BLOCK_ID ?? "29281",
+  adminTelegramId: process.env.ADMIN_TELEGRAM_ID ? Number(process.env.ADMIN_TELEGRAM_ID) : null,
 };
