@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals } from "./db";
+import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals, getReferralStats } from "./db";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
@@ -121,22 +121,39 @@ export const appRouter = router({
             metadata: JSON.stringify({ action: "registration" }),
           });
 
-          // Handle referral bonus for the inviter
+          // Handle referral bonus
           if (input.referredBy && input.referredBy !== input.telegramId) {
             const inviter = await getTelegramUser(input.referredBy);
             if (inviter) {
-              const bonus = 500;
+              // Inviter gets 500 points
+              const inviterBonus = 500;
               await upsertTelegramUser({
                 ...inviter,
-                balance: inviter.balance + bonus,
-                totalEarned: inviter.totalEarned + bonus,
+                balance: Number(inviter.balance) + inviterBonus,
+                totalEarned: Number(inviter.totalEarned) + inviterBonus,
               });
               await createTransaction({
                 telegramId: input.referredBy,
                 type: "referral",
-                points: bonus,
-                metadata: JSON.stringify({ referredId: input.telegramId }),
+                points: inviterBonus,
+                metadata: JSON.stringify({ referredId: input.telegramId, action: "friend_joined" }),
               });
+
+              // New user also gets a 300-point welcome bonus
+              const welcomeBonus = 300;
+              await upsertTelegramUser({
+                telegramId: input.telegramId,
+                balance: welcomeBonus,
+                totalEarned: welcomeBonus,
+              });
+              await createTransaction({
+                telegramId: input.telegramId,
+                type: "bonus",
+                points: welcomeBonus,
+                metadata: JSON.stringify({ action: "referral_welcome", invitedBy: input.referredBy }),
+              });
+              // Refresh user object with updated balance
+              user = await getTelegramUser(input.telegramId);
             }
           }
         } else {
@@ -166,6 +183,12 @@ export const appRouter = router({
       .input(z.object({ telegramId: z.number() }))
       .query(async ({ input }) => {
         return await getTransactions(input.telegramId);
+      }),
+
+    getReferralStats: publicProcedure
+      .input(z.object({ telegramId: z.number() }))
+      .query(async ({ input }) => {
+        return await getReferralStats(input.telegramId);
       }),
   }),
 
