@@ -50,6 +50,11 @@ function verifyTelegramWebApp(initData: string) {
   }
 }
 
+// Format date as YYYY-MM-DD (max 10 chars, fits in varchar(10))
+function toDateString(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
 // Helper to reset daily limits
 function resetDailyIfNeeded(user: any) {
   const now = new Date();
@@ -60,13 +65,13 @@ function resetDailyIfNeeded(user: any) {
   const adDate = user.todayAdsDate ? new Date(user.todayAdsDate).getTime() : 0;
   if (adDate < today) {
     updates.todayAds = 0;
-    updates.todayAdsDate = now;
+    updates.todayAdsDate = toDateString(now);
   }
 
   const spinDate = user.spinsDate ? new Date(user.spinsDate).getTime() : 0;
   if (spinDate < today) {
     updates.spinsLeft = 5;
-    updates.spinsDate = now;
+    updates.spinsDate = toDateString(now);
   }
 
   return updates;
@@ -102,9 +107,9 @@ export const appRouter = router({
             balance: 0,
             totalEarned: 0,
             todayAds: 0,
-            todayAdsDate: now,
+            todayAdsDate: toDateString(now),
             spinsLeft: 5,
-            spinsDate: now,
+            spinsDate: toDateString(now),
             referredBy: input.referredBy && input.referredBy !== input.telegramId ? input.referredBy : null,
           });
 
@@ -210,7 +215,7 @@ export const appRouter = router({
         const updates: any = {
           ...user,
           todayAds: currentTodayAds + 1,
-          lastAdTime: new Date(),
+          lastAdTime: new Date().toISOString().replace("T", " ").replace("Z", ""),
         };
 
         if (input.type === "spin") {
