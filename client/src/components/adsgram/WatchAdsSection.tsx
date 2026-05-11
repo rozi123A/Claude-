@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
-// Declare Adsgram types
 declare global {
   interface Window {
     Adsgram?: {
@@ -27,23 +26,17 @@ interface UserData {
 
 interface WatchAdsSectionProps {
   user: UserData;
-  onReward: () => void;
+  onReward: (update?: { balance: number; todayAds: number; lastAdTime: number }) => void;
 }
 
 export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps) {
   const [loading, setLoading] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const { toast } = useToast();
 
-  // Pre-load Adsgram SDK
   useEffect(() => {
-    const initAdsgram = async () => {
-      if (window.Adsgram) {
-        setSdkReady(true);
-        return;
-      }
-
+    const loadSdk = async () => {
+      if (window.Adsgram) return;
       try {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement("script");
@@ -53,18 +46,16 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
           script.onerror = () => reject();
           document.head.appendChild(script);
         });
-        setSdkReady(true);
       } catch (e) {
         console.error("Failed to pre-load AdsGram SDK");
       }
     };
-    initAdsgram();
+    loadSdk();
   }, []);
   
   const getTokenMutation = trpc.ads.getToken.useMutation();
   const claimMutation = trpc.ads.claim.useMutation();
 
-  // Cooldown timer
   useEffect(() => {
     if (user.lastAdTime) {
       const elapsed = (Date.now() - user.lastAdTime) / 1000;
@@ -109,22 +100,22 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
     setLoading(true);
 
     try {
-      // 1. Check if SDK is ready
-      const adsgram = window.Adsgram;
-      if (!adsgram) {
-        toast({ title: "جاري التجهيز", description: "يتم الآن تحميل نظام الإعلانات، حاول مجدداً خلال ثانية" });
-        setLoading(false);
-        return;
+      if (!window.Adsgram) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://adsgram.ai/sdk/v1/adsgram.js";
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("فشل تحميل SDK"));
+          document.head.appendChild(script);
+        });
       }
 
       const blockId = user.adsgramBlockId || "29281";
-      const AdController = adsgram.init({ blockId, debug: false });
-
-      // 2. Show ad immediately
+      const AdController = window.Adsgram!.init({ blockId, debug: false });
       const result = await AdController.show();
 
       if (result.done) {
-        // 3. Get token
         const tokenData = await getTokenMutation.mutateAsync({
           telegramId: user.telegramId,
           initData: window.Telegram?.WebApp?.initData || "",
@@ -134,7 +125,6 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
           throw new Error(tokenData.message || "فشل الحصول على توكن");
         }
 
-        // 4. Claim reward
         const claimData = await claimMutation.mutateAsync({
           telegramId: user.telegramId,
           token: tokenData.token,
@@ -147,7 +137,17 @@ export default function WatchAdsSection({ user, onReward }: WatchAdsSectionProps
             title: "🎉 مبروك!",
             description: `حصلت على ${claimData.reward} نقطة`,
           });
-          onReward();
+          const now = Date.now();
+          onReward(
+            claimData.balance !== undefined
+              ? {
+                  balance: Number(claimData.balance),
+                  todayAds: user.todayAds + 1,
+                  lastAdTime: now,
+                }
+              : undefined
+          );
+          setCooldownRemaining(user.adCooldown);
         } else {
           throw new Error(claimData.message || "فشل استلام المكافأة");
         }
