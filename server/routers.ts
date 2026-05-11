@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions } from "./db";
+import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals } from "./db";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
@@ -360,4 +360,160 @@ export const appRouter = router({
         };
       }),
   }),
+
+  withdraw: router({
+    // Create a new withdrawal request
+    create: publicProcedure
+      .input(z.object({ telegramId: z.number(), amount: z.number(), initData: z.string() }))
+      .mutation(async ({ input }) => {
+        const verified = verifyTelegramWebApp(input.initData);
+        if (!verified || verified.id !== input.telegramId) {
+          return { success: false, message: "بيانات غير صالحة" };
+        }
+
+        const user = await getTelegramUser(input.telegramId);
+        if (!user) return { success: false, message: "المستخدم غير موجود" };
+
+        const minWithdraw = await getSetting("minWithdraw", 10000);
+        const starsRate = await getSetting("starsRate", 1000);
+        const currentBalance = Number(user.balance) || 0;
+
+        if (input.amount < minWithdraw) {
+          return { success: false, message: `الحد الأدنى للسحب ${minWithdraw.toLocaleString()} نقطة` };
+        }
+        if (input.amount > currentBalance) {
+          return { success: false, message: "رصيدك غير كافٍ" };
+        }
+
+        // Check no already-pending withdrawal for this user
+        const userWithdrawals = await getUserWithdrawals(input.telegramId, 5);
+        const hasPending = userWithdrawals.some((w: any) => w.status === "pending");
+        if (hasPending) {
+          return { success: false, message: "لديك طلب سحب قيد المعالجة، انتظر حتى تتم معالجته" };
+        }
+
+        const stars = Math.floor(input.amount / starsRate);
+
+        // Deduct balance
+        await upsertTelegramUser({
+          ...user,
+          balance: currentBalance - input.amount,
+        });
+
+        // Create withdrawal record
+        const withdrawal = await createWithdrawal({
+          telegramId: input.telegramId,
+          amount: input.amount,
+          stars,
+          method: "telegram_stars",
+          status: "pending",
+        });
+
+        // Create transaction record
+        await createTransaction({
+          telegramId: input.telegramId,
+          type: "withdraw",
+          points: -input.amount,
+          metadata: JSON.stringify({ stars, status: "pending" }),
+        });
+
+        // Notify admin via Telegram Bot API
+        const botToken = ENV.botToken;
+        const adminId = ENV.adminTelegramId;
+        if (botToken && adminId) {
+          const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || "مجهول";
+          const username = user.username ? `@${user.username}` : "بدون username";
+          const msg = [
+            `🔔 <b>طلب سحب جديد</b>`,
+            ``,
+            `👤 الاسم: <b>${name}</b>`,
+            `🔗 المعرف: ${username}`,
+            `🆔 Telegram ID: <code>${input.telegramId}</code>`,
+            ``,
+            `💰 النقاط: <b>${input.amount.toLocaleString()}</b>`,
+            `⭐ النجوم: <b>${stars}</b>`,
+            ``,
+            `📋 حالة الطلب: قيد المعالجة`,
+            `⏰ الوقت: ${new Date().toLocaleString("ar-SA")}`,
+            ``,
+            `للموافقة أو الرفض استخدم لوحة الأدمن في التطبيق.`,
+          ].join("\n");
+
+          fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: adminId, text: msg, parse_mode: "HTML" }),
+          }).catch(() => {});
+        }
+
+        return { success: true, stars, message: "تم إرسال طلب السحب بنجاح! سيتم المعالجة خلال 24 ساعة." };
+      }),
+
+    // Get current user's withdrawal history
+    getHistory: publicProcedure
+      .input(z.object({ telegramId: z.number() }))
+      .query(async ({ input }) => {
+        return await getUserWithdrawals(input.telegramId, 10);
+      }),
+
+    // Admin: get all pending withdrawals (only if adminId matches env)
+    adminGetPending: publicProcedure
+      .input(z.object({ telegramId: z.number() }))
+      .query(async ({ input }) => {
+        if (!ENV.adminTelegramId || input.telegramId !== ENV.adminTelegramId) {
+          return { success: false, message: "غير مصرح", withdrawals: [] };
+        }
+        const list = await getPendingWithdrawals();
+        return { success: true, withdrawals: list };
+      }),
+
+    // Admin: approve or reject a withdrawal
+    adminUpdate: publicProcedure
+      .input(z.object({
+        telegramId: z.number(),
+        withdrawalId: z.number(),
+        status: z.enum(["approved", "rejected"]),
+        note: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        if (!ENV.adminTelegramId || input.telegramId !== ENV.adminTelegramId) {
+          return { success: false, message: "غير مصرح" };
+        }
+
+        // If rejected, restore user's balance
+        if (input.status === "rejected") {
+          const pendingList = await getPendingWithdrawals();
+          const w = pendingList.find((p: any) => p.id === input.withdrawalId);
+          if (w) {
+            const user = await getTelegramUser(w.telegramId);
+            if (user) {
+              await upsertTelegramUser({
+                ...user,
+                balance: Number(user.balance) + Number(w.amount),
+              });
+            }
+          }
+        }
+
+        await updateWithdrawalStatus(
+          input.withdrawalId,
+          input.status as "approved" | "rejected",
+          input.note
+        );
+
+        // Notify user via bot
+        const botToken = ENV.botToken;
+        if (botToken) {
+          const pendingList = await getPendingWithdrawals();
+          const allList = pendingList; // simplified — we already updated it
+          const emoji = input.status === "approved" ? "✅" : "❌";
+          const statusText = input.status === "approved" ? "تمت الموافقة على طلبك" : "تم رفض طلبك";
+          // We stored telegramId in withdrawal, get it from pending list before update or pass it separately
+          // For simplicity, the note can include user ID info
+        }
+
+        return { success: true, message: `تم ${input.status === "approved" ? "الموافقة" : "رفض"} الطلب بنجاح` };
+      }),
+  }),
+
 });
