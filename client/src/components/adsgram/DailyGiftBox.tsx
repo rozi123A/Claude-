@@ -11,7 +11,7 @@ interface DailyGiftBoxProps {
   onClaim: (update: { balance: number; totalEarned: number }) => void;
 }
 
-const LS_KEY = (id: number) => `daily_gift_next_${id}`;
+const LS_KEY    = (id: number) => `daily_gift_next_${id}`;
 const LS_AD_KEY = (id: number) => `daily_gift_ad_watched_${id}`;
 
 function getTimeLeft(nextClaim: number): number {
@@ -22,23 +22,22 @@ function fmt(ms: number) {
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
   const s = Math.floor((ms % 60000) / 1000);
-  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: DailyGiftBoxProps) {
-  const [nextClaim,   setNextClaim]   = useState<number>(() => {
+  const [nextClaim, setNextClaim] = useState<number>(() => {
     try { return parseInt(localStorage.getItem(LS_KEY(telegramId)) || "0"); } catch { return 0; }
   });
-  const [timeLeft,    setTimeLeft]    = useState(() => getTimeLeft(nextClaim));
-  const [isOpening,   setIsOpening]   = useState(false);
-  const [reward,      setReward]      = useState(0);
-  const [showReward,  setShowReward]  = useState(false);
-  const [isHovered,   setIsHovered]   = useState(false);
-  // Ad gate: has the user watched the ad for today's gift?
-  const [adWatched,   setAdWatched]   = useState<boolean>(() => {
+  const [timeLeft,   setTimeLeft]   = useState(() => getTimeLeft(nextClaim));
+  const [isOpening,  setIsOpening]  = useState(false);
+  const [reward,     setReward]     = useState(0);
+  const [showReward, setShowReward] = useState(false);
+  const [isHovered,  setIsHovered]  = useState(false);
+  const [adWatched,  setAdWatched]  = useState<boolean>(() => {
     try { return localStorage.getItem(LS_AD_KEY(telegramId)) === new Date().toISOString().split("T")[0]; } catch { return false; }
   });
-  const [showAdGate,  setShowAdGate]  = useState(false);
+  const [showAdGate, setShowAdGate] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast }   = useToast();
@@ -59,7 +58,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [nextClaim]);
 
-  // Mark ad as watched for today
   function markAdWatched() {
     try { localStorage.setItem(LS_AD_KEY(telegramId), new Date().toISOString().split("T")[0]); } catch {}
     setAdWatched(true);
@@ -68,11 +66,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
 
   const handleBoxClick = () => {
     if (!canClaim || isOpening) return;
-    if (!adWatched) {
-      // Show ad gate first
-      setShowAdGate(true);
-      return;
-    }
+    if (!adWatched) { setShowAdGate(true); return; }
     handleClaim();
   };
 
@@ -84,7 +78,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
       if (result.success && result.reward) {
         setReward(result.reward);
         setShowReward(true);
-        // Reset ad gate for next day
         try { localStorage.removeItem(LS_AD_KEY(telegramId)); } catch {}
         setAdWatched(false);
         const next = result.nextClaim ?? Date.now() + 24 * 60 * 60 * 1000;
@@ -111,7 +104,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
 
   return (
     <>
-      {/* Ad gate overlay — must watch ad before claiming gift */}
       {showAdGate && (
         <AdOverlay
           seconds={15}
@@ -149,6 +141,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
               : "rotateX(10deg) rotateY(-10deg)",
             transition: isOpening ? "transform 0.7s cubic-bezier(0.68,-0.55,0.27,1.55)" : "transform 0.3s ease",
           }}>
+            {/* Box body */}
             <div style={{
               position: "absolute", width: 84, height: 84, left: 23, top: 32,
               background: canClaim ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "linear-gradient(135deg,#374151,#1f2937)",
@@ -163,6 +156,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
                 top: 0, left: "calc(50% - 4.5px)", borderRadius: 3,
               }} />
             </div>
+            {/* Box lid */}
             <div style={{
               position: "absolute", width: 92, height: 24, left: 19, top: isOpening ? 2 : 22,
               background: canClaim ? "linear-gradient(135deg,#9333ea,#6d28d9)" : "linear-gradient(135deg,#4b5563,#374151)",
@@ -172,24 +166,26 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
               transition: "top 0.4s ease",
               display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible",
             }}>
-              <div style={{ width:"100%", height:9, background: canClaim ? "linear-gradient(90deg,#fbbf24,#f59e0b)" : "linear-gradient(90deg,#6b7280,#4b5563)", borderRadius:3 }} />
+              <div style={{ width: "100%", height: 9, background: canClaim ? "linear-gradient(90deg,#fbbf24,#f59e0b)" : "linear-gradient(90deg,#6b7280,#4b5563)", borderRadius: 3 }} />
               {canClaim && (
-                <div style={{ position:"absolute", top:-14, display:"flex", gap:1 }}>
-                  <div style={{ width:16,height:12,background:"linear-gradient(135deg,#fde68a,#fbbf24)",borderRadius:"50% 50% 0 0",transform:"rotate(-28deg)",boxShadow:"0 2px 5px rgba(251,191,36,0.5)" }} />
-                  <div style={{ width:16,height:12,background:"linear-gradient(135deg,#fde68a,#fbbf24)",borderRadius:"50% 50% 0 0",transform:"rotate(28deg)",boxShadow:"0 2px 5px rgba(251,191,36,0.5)" }} />
+                <div style={{ position: "absolute", top: -14, display: "flex", gap: 1 }}>
+                  <div style={{ width: 16, height: 12, background: "linear-gradient(135deg,#fde68a,#fbbf24)", borderRadius: "50% 50% 0 0", transform: "rotate(-28deg)", boxShadow: "0 2px 5px rgba(251,191,36,0.5)" }} />
+                  <div style={{ width: 16, height: 12, background: "linear-gradient(135deg,#fde68a,#fbbf24)", borderRadius: "50% 50% 0 0", transform: "rotate(28deg)", boxShadow: "0 2px 5px rgba(251,191,36,0.5)" }} />
                 </div>
               )}
             </div>
+            {/* Sparkles */}
             {canClaim && (
               <>
-                <div style={{ position:"absolute",top:36,left:28,fontSize:13,animation:"giftFloat1 2s ease-in-out infinite",pointerEvents:"none" }}>✨</div>
-                <div style={{ position:"absolute",top:52,left:78,fontSize:11,animation:"giftFloat2 2.5s ease-in-out infinite",pointerEvents:"none" }}>⭐</div>
+                <div style={{ position: "absolute", top: 36, left: 28, fontSize: 13, animation: "giftFloat1 2s ease-in-out infinite", pointerEvents: "none" }}>✨</div>
+                <div style={{ position: "absolute", top: 52, left: 78, fontSize: 11, animation: "giftFloat2 2.5s ease-in-out infinite", pointerEvents: "none" }}>⭐</div>
               </>
             )}
           </div>
 
+          {/* Reward popup */}
           {showReward && (
-            <div style={{ position:"absolute",top:"45%",left:"50%",transform:"translate(-50%,-50%)",fontSize:26,fontWeight:900,color:"#fbbf24",textShadow:"0 0 18px rgba(251,191,36,0.9)",animation:"giftRewardPop 0.5s ease-out forwards",whiteSpace:"nowrap",zIndex:20,pointerEvents:"none" }}>
+            <div style={{ position: "absolute", top: "45%", left: "50%", transform: "translate(-50%,-50%)", fontSize: 26, fontWeight: 900, color: "#fbbf24", textShadow: "0 0 18px rgba(251,191,36,0.9)", animation: "giftRewardPop 0.5s ease-out forwards", whiteSpace: "nowrap", zIndex: 20, pointerEvents: "none" }}>
               +{reward} PTS
             </div>
           )}
@@ -199,7 +195,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
         <div className="text-center">
           {canClaim ? (
             <div className="flex flex-col items-center gap-1">
-              <p className="text-xs font-black text-yellow-400" style={{ animation:"giftPulse 1.5s ease-in-out infinite" }}>
+              <p className="text-xs font-black text-yellow-400" style={{ animation: "giftPulse 1.5s ease-in-out infinite" }}>
                 {adWatched ? t.daily_gift_ready : "📺 شاهد إعلاناً لاستلام هديتك"}
               </p>
               {!adWatched && (
@@ -215,7 +211,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
         </div>
 
         <style>{`
-          @keyframes giftPulse { 0%,100%{opacity:.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
+          @keyframes giftPulse  { 0%,100%{opacity:.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
           @keyframes giftFloat1 { 0%,100%{transform:translateY(0)rotate(0deg)} 50%{transform:translateY(-7px)rotate(18deg)} }
           @keyframes giftFloat2 { 0%,100%{transform:translateY(0)rotate(0deg)} 50%{transform:translateY(-9px)rotate(-15deg)} }
           @keyframes giftRewardPop { 0%{opacity:0;transform:translate(-50%,-50%)scale(.4)} 55%{opacity:1;transform:translate(-50%,-90%)scale(1.25)} 100%{opacity:0;transform:translate(-50%,-140%)scale(1)} }
