@@ -23,7 +23,16 @@ interface WatchAdsSectionProps {
   onReward: (update?: { balance: number; todayAds: number; lastAdTime: number }) => void;
 }
 
-const AD_DURATION = 10;
+const AD_DURATION = 12;
+
+function loadMonetagScript() {
+  if (document.getElementById("monetag-script")) return;
+  const s = document.createElement("script");
+  s.id = "monetag-script";
+  s.src = "https://3nbf4.com/400/10996226";
+  s.async = true;
+  document.head.appendChild(s);
+}
 
 export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectionProps) {
   const [loading, setLoading] = useState(false);
@@ -56,11 +65,21 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
     }
   }, [user.lastAdTime, user.adCooldown]);
 
-  useEffect(() => {
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, []);
+  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
+
+  const startCountdown = () => {
+    let count = AD_DURATION;
+    setCountdown(count);
+    setCanClaim(false);
+    countdownRef.current = setInterval(() => {
+      count--;
+      setCountdown(count);
+      if (count <= 0) {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        setCanClaim(true);
+      }
+    }, 1000);
+  };
 
   const handleWatchAd = async () => {
     if (user.todayAds >= 50) {
@@ -68,39 +87,21 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
       return;
     }
     if (cooldownRemaining > 0) {
-      toast({
-        title: t.notice,
-        description: `${t.wait_before_next} ${Math.ceil(cooldownRemaining)} ${t.seconds}`,
-        variant: "destructive",
-      });
+      toast({ title: t.notice, description: `${t.wait_before_next} ${Math.ceil(cooldownRemaining)} ${t.seconds}`, variant: "destructive" });
       return;
     }
-
     setLoading(true);
     try {
       const tokenData = await getTokenMutation.mutateAsync({
         telegramId: user.telegramId,
         initData: window.Telegram?.WebApp?.initData || "",
       });
-
-      if (!tokenData.success || !tokenData.token) {
-        throw new Error(tokenData.message || t.ad_error_desc);
-      }
+      if (!tokenData.success || !tokenData.token) throw new Error(tokenData.message || t.ad_error_desc);
 
       setAdToken(tokenData.token);
+      loadMonetagScript();
       setShowOverlay(true);
-      setCountdown(AD_DURATION);
-      setCanClaim(false);
-
-      let count = AD_DURATION;
-      countdownRef.current = setInterval(() => {
-        count--;
-        setCountdown(count);
-        if (count <= 0) {
-          if (countdownRef.current) clearInterval(countdownRef.current);
-          setCanClaim(true);
-        }
-      }, 1000);
+      startCountdown();
     } catch (error: any) {
       toast({ title: t.ad_error, description: error.message || t.ad_error_desc, variant: "destructive" });
     } finally {
@@ -118,17 +119,14 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
         initData: window.Telegram?.WebApp?.initData || "",
         type: "points",
       });
-
       if (claimData.success) {
         toast({ title: t.congrats, description: `${t.earned_points}: ${claimData.reward}` });
         const now = Date.now();
-        onReward(
-          claimData.balance !== undefined
-            ? { balance: Number(claimData.balance), todayAds: user.todayAds + 1, lastAdTime: now }
-            : undefined
-        );
+        onReward(claimData.balance !== undefined
+          ? { balance: Number(claimData.balance), todayAds: user.todayAds + 1, lastAdTime: now }
+          : undefined);
         setCooldownRemaining(user.adCooldown);
-        handleCloseOverlay();
+        handleClose();
       } else {
         throw new Error(claimData.message || t.ad_error_desc);
       }
@@ -139,7 +137,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
     }
   };
 
-  const handleCloseOverlay = () => {
+  const handleClose = () => {
     if (countdownRef.current) clearInterval(countdownRef.current);
     setShowOverlay(false);
     setAdToken(null);
@@ -150,62 +148,81 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
   return (
     <>
       {showOverlay && (
-        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0a0f1e" }}>
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/60"
-               style={{ background: "#0d1525" }}>
+        <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "#0a0f1e" }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/60" style={{ background: "#0d1525" }}>
             <span className="text-xs text-gray-400 font-medium">إعلان</span>
-            <div className="px-4 py-1 rounded-full border border-green-500/40"
-                 style={{ background: "rgba(34,197,94,0.12)" }}>
+            <div className="px-4 py-1 rounded-full" style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)" }}>
               <span className="text-xs text-green-400 font-bold">✓ جاهز</span>
             </div>
             <span className="text-xs text-gray-500">مدعوم من Monetag</span>
           </div>
 
-          <div className="flex-1 overflow-hidden" style={{ background: "#0d1a3e" }}>
-            <iframe
-              src="/monetag.html"
-              className="w-full h-full border-0"
-              title="advertisement"
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
+          {/* Ad Visual Area */}
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6" style={{ background: "#0d1a3e" }}>
+            {/* Ad image placeholder */}
+            <div className="w-56 h-44 rounded-2xl flex items-center justify-center shadow-2xl"
+                 style={{ background: "linear-gradient(135deg, #1a2a6e 0%, #0d1a3e 100%)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="text-center space-y-3">
+                <div className="text-6xl opacity-40">❓</div>
+                <div className="w-8 h-1 mx-auto rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.2)" }} />
+              </div>
+            </div>
+
+            {/* Advertiser info */}
+            <div className="w-full max-w-sm space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg" style={{ background: "#f39c12", color: "#fff" }}>C</div>
+                <div>
+                  <p className="font-bold text-white text-sm">CryptoFarm 🌾</p>
+                  <p className="text-xs text-gray-400">Farm crypto every day!</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Collect coins, upgrade your farm and earn real USDT rewards daily. Join millions of players now!
+              </p>
+              <div className="inline-block px-2 py-0.5 rounded text-xs text-gray-500" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>Ad</div>
+            </div>
+
+            <p className="text-xs text-gray-600">ads by Monetag</p>
+          </div>
+
+          {/* Countdown progress bar */}
+          <div className="h-1 bg-slate-800">
+            <div
+              className="h-full bg-green-500 transition-all duration-1000"
+              style={{ width: `${((AD_DURATION - countdown) / AD_DURATION) * 100}%` }}
             />
           </div>
 
-          <div className="px-4 py-4 space-y-3 border-t border-slate-800/80"
-               style={{ background: "#0a0f1e" }}>
+          {/* Buttons */}
+          <div className="px-4 py-4 space-y-3" style={{ background: "#0a0f1e", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <button
               onClick={handleClaim}
               disabled={!canClaim || loading}
-              className="w-full h-14 rounded-xl text-base font-bold transition-all duration-300 flex items-center justify-center gap-2"
               style={{
-                background: canClaim
-                  ? "linear-gradient(135deg, #22c55e, #16a34a)"
-                  : "rgba(34,197,94,0.15)",
+                width: "100%", height: 56, borderRadius: 14, fontWeight: 700, fontSize: 16,
+                border: "none", cursor: canClaim ? "pointer" : "not-allowed",
+                background: canClaim ? "linear-gradient(135deg, #22c55e, #16a34a)" : "rgba(34,197,94,0.12)",
                 color: canClaim ? "#fff" : "#4ade80",
-                boxShadow: canClaim ? "0 0 24px rgba(34,197,94,0.35)" : "none",
-                cursor: canClaim ? "pointer" : "not-allowed",
-                border: "none",
+                boxShadow: canClaim ? "0 0 28px rgba(34,197,94,0.4)" : "none",
+                transition: "all 0.3s",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               }}
             >
-              {loading ? (
-                <span>⏳</span>
-              ) : canClaim ? (
-                "✅ استلام المكافأة"
-              ) : (
-                <>
-                  <span style={{ fontSize: 18 }}>⬇</span>
-                  <span>جاري الاستلام... {countdown}</span>
-                </>
-              )}
+              {loading
+                ? "⏳"
+                : canClaim
+                  ? "✅ استلام المكافأة"
+                  : <><span style={{ fontSize: 20 }}>⬇</span><span>جاري الاستلام... {countdown}</span></>
+              }
             </button>
-
             <button
-              onClick={handleCloseOverlay}
-              className="w-full h-12 rounded-xl text-sm font-medium transition-colors"
+              onClick={handleClose}
               style={{
-                background: "rgba(255,255,255,0.04)",
-                color: "#94a3b8",
-                border: "1px solid rgba(255,255,255,0.08)",
-                cursor: "pointer",
+                width: "100%", height: 48, borderRadius: 12, fontWeight: 500, fontSize: 14,
+                background: "rgba(255,255,255,0.04)", color: "#94a3b8",
+                border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer",
               }}
             >
               › استمر
@@ -224,13 +241,9 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
         <CardContent className="space-y-4">
           <div className="p-4 bg-purple-900/30 rounded-lg border border-purple-700/30">
             <p className="text-sm text-gray-300 mb-2">
-              {t.earn_per_ad}{" "}
-              <span className="font-bold text-yellow-400">{user.adReward}</span>{" "}
-              {t.points}
+              {t.earn_per_ad} <span className="font-bold text-yellow-400">{user.adReward}</span> {t.points}
             </p>
-            <p className="text-xs text-gray-400">
-              {t.daily_limit_info}: {user.todayAds}/50
-            </p>
+            <p className="text-xs text-gray-400">{t.daily_limit_info}: {user.todayAds}/50</p>
           </div>
 
           {cooldownRemaining > 0 && (
@@ -247,15 +260,11 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
             disabled={loading || cooldownRemaining > 0 || user.todayAds >= 50}
             className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-bold h-12"
           >
-            {loading ? (
-              <><span className="animate-spin mr-2">⏳</span>{t.loading}</>
-            ) : cooldownRemaining > 0 ? (
-              `${t.wait} ${Math.ceil(cooldownRemaining)}s`
-            ) : user.todayAds >= 50 ? (
-              t.daily_limit_reached
-            ) : (
-              `${t.watch_ad_btn} (${user.adReward} PTS)`
-            )}
+            {loading
+              ? <><span className="animate-spin mr-2">⏳</span>{t.loading}</>
+              : cooldownRemaining > 0 ? `${t.wait} ${Math.ceil(cooldownRemaining)}s`
+              : user.todayAds >= 50 ? t.daily_limit_reached
+              : `${t.watch_ad_btn} (${user.adReward} PTS)`}
           </Button>
 
           <div className="grid grid-cols-2 gap-2 text-center text-xs">
@@ -268,7 +277,6 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
               <p className="font-bold text-blue-400">{user.adCooldown}s</p>
             </div>
           </div>
-
           <p className="text-center text-xs text-gray-600">ads by Monetag</p>
         </CardContent>
       </Card>
