@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Gift, Sparkles, Tv2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 import { translations, type Language } from "@/lib/i18n";
+import AdOverlay from "./AdOverlay";
 
 interface UserData {
   telegramId: number;
@@ -31,335 +31,184 @@ const PRIZES = [
   { label: "250",  value: 250,  color: "#FD79A8" },
 ];
 
-const AD_DURATION = 12;
+const MAX_AD_SPINS = 5;
+const LS_COUNT = "spinAdCount";
+const LS_DATE  = "spinAdDate";
 
-function loadMonetagScript() {
-  if (document.getElementById("monetag-script")) return;
-  const s = document.createElement("script");
-  s.id = "monetag-script";
-  s.src = "https://3nbf4.com/400/10996226";
-  s.async = true;
-  document.head.appendChild(s);
+function todayStr() { return new Date().toISOString().split("T")[0]; }
+function getAdSpinsUsed(): number {
+  try {
+    if (localStorage.getItem(LS_DATE) !== todayStr()) {
+      localStorage.setItem(LS_COUNT, "0");
+      localStorage.setItem(LS_DATE, todayStr());
+      return 0;
+    }
+    return parseInt(localStorage.getItem(LS_COUNT) || "0", 10);
+  } catch { return 0; }
+}
+function bumpAdSpins() {
+  try {
+    localStorage.setItem(LS_COUNT, String(getAdSpinsUsed() + 1));
+    localStorage.setItem(LS_DATE, todayStr());
+  } catch {}
+}
+
+function getAudioCtx(): AudioContext | null {
+  try { return new (window.AudioContext || (window as any).webkitAudioContext)(); } catch { return null; }
+}
+function playTick(ctx: AudioContext, t: number) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.type = "triangle";
+  o.frequency.setValueAtTime(900, t);
+  o.frequency.exponentialRampToValueAtTime(400, t + 0.04);
+  g.gain.setValueAtTime(0.18, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  o.start(t); o.stop(t + 0.05);
+}
+function playSpinSound(ctx: AudioContext, dur: number) {
+  const now = ctx.currentTime; let t = now, iv = 0.06;
+  while (t < now + dur) { playTick(ctx, t); t += iv; iv = 0.06 + ((t - now) / dur) * 0.55; }
+}
+function playWinSound(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  [261.63, 329.63, 392.0, 523.25].forEach((freq, i) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination); o.type = "sine";
+    const t = now + i * 0.13;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.3, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    o.start(t); o.stop(t + 0.4);
+  });
 }
 
 export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSectionProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
-
-  // Monetag ad overlay state
-  const [showAdOverlay, setShowAdOverlay] = useState(false);
-  const [adCountdown, setAdCountdown] = useState(AD_DURATION);
-  const [adCanClaim, setAdCanClaim] = useState(false);
-  const [adToken, setAdToken] = useState<string | null>(null);
-  const [adLoading, setAdLoading] = useState(false);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const audioCtxRef  = useRef<AudioContext | null>(null);
+  const [isSpinning,  setIsSpinning]  = useState(false);
+  const [rotation,    setRotation]    = useState(0);
+  const [showAd,      setShowAd]      = useState(false);
+  const [adSpinsUsed, setAdSpinsUsed] = useState(0);
   const { toast } = useToast();
   const t = translations[lang];
 
-  const spinMutation = trpc.spin.perform.useMutation();
+  const spinMutation     = trpc.spin.perform.useMutation();
   const getTokenMutation = trpc.ads.getToken.useMutation();
-  const claimMutation = trpc.ads.claim.useMutation();
+  const claimMutation    = trpc.ads.claim.useMutation();
 
+  useEffect(() => { setAdSpinsUsed(getAdSpinsUsed()); }, []);
   useEffect(() => { drawWheel(); }, [rotation]);
-  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
-  const drawWheel = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-    const r = cx - 15;
-    const segments = PRIZES.length;
-    const arc = (2 * Math.PI) / segments;
+  function drawWheel() {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    const cx = canvas.width / 2, cy = canvas.height / 2, r = cx - 15;
+    const seg = PRIZES.length, arc = (2 * Math.PI) / seg;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.beginPath();
-    ctx.arc(cx, cy, r + 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "#2d3436";
-    ctx.fill();
-    ctx.strokeStyle = "#f1c40f";
-    ctx.lineWidth = 4;
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, r + 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#2d3436"; ctx.fill();
+    ctx.strokeStyle = "#f1c40f"; ctx.lineWidth = 4; ctx.stroke();
 
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(rotation);
-
-    for (let i = 0; i < segments; i++) {
-      const start = i * arc;
-      const end = start + arc;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.arc(0, 0, r, start, end);
-      ctx.closePath();
-      ctx.fillStyle = PRIZES[i].color;
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.2)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.save();
-      ctx.rotate(start + arc / 2);
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#2d3436";
-      ctx.font = "bold 18px 'Inter', sans-serif";
-      ctx.fillText(PRIZES[i].label, r - 25, 7);
-      ctx.restore();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(rotation);
+    for (let i = 0; i < seg; i++) {
+      const s = i * arc, e = s + arc;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, s, e); ctx.closePath();
+      ctx.fillStyle = PRIZES[i].color; ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.save(); ctx.rotate(s + arc / 2); ctx.textAlign = "right";
+      ctx.fillStyle = "#2d3436"; ctx.font = "bold 18px 'Inter',sans-serif";
+      ctx.fillText(PRIZES[i].label, r - 25, 7); ctx.restore();
     }
-
     ctx.restore();
 
-    const gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 30);
-    gradient.addColorStop(0, "#f1c40f");
-    gradient.addColorStop(1, "#e67e22");
-    ctx.beginPath();
-    ctx.arc(cx, cy, 30, 0, 2 * Math.PI);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 14px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    const grad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 30);
+    grad.addColorStop(0, "#f1c40f"); grad.addColorStop(1, "#e67e22");
+    ctx.beginPath(); ctx.arc(cx, cy, 30, 0, 2 * Math.PI);
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("GO", cx, cy);
 
     ctx.beginPath();
-    ctx.moveTo(cx - 10, cy - r - 5);
-    ctx.lineTo(cx + 10, cy - r - 5);
-    ctx.lineTo(cx, cy - r + 15);
-    ctx.closePath();
-    ctx.fillStyle = "#fff";
-    ctx.fill();
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  };
+    ctx.moveTo(cx - 10, cy - r - 5); ctx.lineTo(cx + 10, cy - r - 5); ctx.lineTo(cx, cy - r + 15);
+    ctx.closePath(); ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke();
+  }
 
-  // ─── Monetag ad for spin ───────────────────────────────────────────────────
+  async function handleClaimSpinAd() {
+    const initData = window.Telegram?.WebApp?.initData || "";
+    const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
+    if (!tok.success || !tok.token) throw new Error(tok.message || "فشل");
+    const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
+    if (!cl.success) throw new Error(cl.message || "فشل استلام المكافأة");
+    bumpAdSpins();
+    setAdSpinsUsed(getAdSpinsUsed());
+    toast({ title: t.congrats, description: t.extra_spin_reward });
+    onReward(cl.balance !== undefined && cl.spinsLeft !== undefined
+      ? { balance: Number(cl.balance), spinsLeft: Number(cl.spinsLeft) } : undefined
+    );
+    setShowAd(false);
+  }
 
-  const startAdCountdown = () => {
-    let count = AD_DURATION;
-    setAdCountdown(count);
-    setAdCanClaim(false);
-    countdownRef.current = setInterval(() => {
-      count--;
-      setAdCountdown(count);
-      if (count <= 0) {
-        if (countdownRef.current) clearInterval(countdownRef.current);
-        setAdCanClaim(true);
-      }
-    }, 1000);
-  };
-
-  const handleWatchAdForSpin = async () => {
-    if (adLoading) return;
-    setAdLoading(true);
-    try {
-      const tokenData = await getTokenMutation.mutateAsync({
-        telegramId: user.telegramId,
-        initData: window.Telegram?.WebApp?.initData || "",
-      });
-      if (!tokenData.success || !tokenData.token) throw new Error(tokenData.message || t.ad_error_desc);
-
-      setAdToken(tokenData.token);
-      loadMonetagScript();
-      setShowAdOverlay(true);
-      startAdCountdown();
-    } catch (error: any) {
-      toast({ title: t.ad_error, description: error.message || t.ad_error_desc, variant: "destructive" });
-    } finally {
-      setAdLoading(false);
-    }
-  };
-
-  const handleAdClaim = async () => {
-    if (!adToken || !adCanClaim) return;
-    setAdLoading(true);
-    try {
-      const claimData = await claimMutation.mutateAsync({
-        telegramId: user.telegramId,
-        token: adToken,
-        initData: window.Telegram?.WebApp?.initData || "",
-        type: "spin",
-      });
-      if (claimData.success) {
-        toast({ title: t.congrats, description: `${t.extra_spin_reward}: ${claimData.reward}` });
-        onReward(
-          claimData.balance !== undefined && claimData.spinsLeft !== undefined
-            ? { balance: Number(claimData.balance), spinsLeft: Number(claimData.spinsLeft) }
-            : undefined
-        );
-        closeAdOverlay();
-      } else {
-        throw new Error(claimData.message || t.ad_error_desc);
-      }
-    } catch (error: any) {
-      toast({ title: t.ad_error, description: error.message || t.ad_error_desc, variant: "destructive" });
-    } finally {
-      setAdLoading(false);
-    }
-  };
-
-  const closeAdOverlay = () => {
-    if (countdownRef.current) clearInterval(countdownRef.current);
-    setShowAdOverlay(false);
-    setAdToken(null);
-    setAdCanClaim(false);
-    setAdCountdown(AD_DURATION);
-  };
-
-  // ─── Spin wheel ───────────────────────────────────────────────────────────
-
-  const handleSpin = async () => {
+  async function handleSpin() {
     if (isSpinning || user.spinsLeft <= 0) return;
     setIsSpinning(true);
+    if (!audioCtxRef.current) audioCtxRef.current = getAudioCtx();
+    const actx = audioCtxRef.current;
+    if (actx?.state === "suspended") await actx.resume();
 
     try {
-      const data = await spinMutation.mutateAsync({
-        telegramId: user.telegramId,
-        initData: window.Telegram?.WebApp?.initData || "",
-      });
-
+      const data = await spinMutation.mutateAsync({ telegramId: user.telegramId, initData: window.Telegram?.WebApp?.initData || "" });
       if (!data.success) {
         toast({ title: t.notice, description: data.message || t.spin_failed, variant: "destructive" });
-        setIsSpinning(false);
-        return;
+        setIsSpinning(false); return;
       }
 
-      const prizeIndex = PRIZES.findIndex((p) => p.value === data.prize);
-      const segmentAngle = (2 * Math.PI) / PRIZES.length;
-      const startRotation = rotation;
-      const targetPrizeRotation = -(prizeIndex * segmentAngle + segmentAngle / 2) - Math.PI / 2;
-      const currentRotationNormalized = startRotation % (Math.PI * 2);
-      const extraSpins = 8 * Math.PI * 2;
-      const targetRotation = startRotation + extraSpins + (targetPrizeRotation - currentRotationNormalized);
+      const idx = PRIZES.findIndex(p => p.value === data.prize);
+      const segAngle = (2 * Math.PI) / PRIZES.length;
+      const target = rotation + 8 * Math.PI * 2 + (-(idx * segAngle + segAngle / 2) - Math.PI / 2 - rotation % (Math.PI * 2));
+      const dur = 4000, t0 = Date.now(), r0 = rotation;
 
-      const startTime = Date.now();
-      const duration = 4000;
+      if (actx) playSpinSound(actx, dur / 1000);
 
       const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easeOut = 1 - Math.pow(1 - progress, 4);
-        setRotation(startRotation + (targetRotation - startRotation) * easeOut);
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          toast({
-            title: t.congrats,
-            description: `${t.won_points} ${data.prize} PTS`,
-          });
-          onReward(
-            data.balance !== undefined && data.spinsLeft !== undefined
-              ? { balance: Number(data.balance), spinsLeft: Number(data.spinsLeft) }
-              : undefined
+        const p = Math.min((Date.now() - t0) / dur, 1);
+        setRotation(r0 + (target - r0) * (1 - Math.pow(1 - p, 4)));
+        if (p < 1) { requestAnimationFrame(animate); }
+        else {
+          if (actx) playWinSound(actx);
+          toast({ title: t.congrats, description: `${t.won_points} ${data.prize} PTS` });
+          onReward(data.balance !== undefined && data.spinsLeft !== undefined
+            ? { balance: Number(data.balance), spinsLeft: Number(data.spinsLeft) } : undefined
           );
           setIsSpinning(false);
         }
       };
-
       animate();
-    } catch (error: any) {
-      console.error("Error spinning:", error);
+    } catch {
       toast({ title: t.error, description: t.spin_error, variant: "destructive" });
       setIsSpinning(false);
     }
-  };
+  }
+
+  const adSpinsLeft = MAX_AD_SPINS - adSpinsUsed;
+  const noFreeSpins = user.spinsLeft <= 0;
 
   return (
     <>
-      {/* ── Monetag Ad Overlay ─────────────────────────────────────────── */}
-      {showAdOverlay && (
-        <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "#0a0f1e" }}>
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/60" style={{ background: "#0d1525" }}>
-            <span className="text-xs text-gray-400 font-medium">إعلان</span>
-            <div className="px-4 py-1 rounded-full" style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)" }}>
-              <span className="text-xs text-green-400 font-bold">✓ جاهز</span>
-            </div>
-            <span className="text-xs text-gray-500">مدعوم من Monetag</span>
-          </div>
-
-          {/* Ad Content */}
-          <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6" style={{ background: "#0d1a3e" }}>
-            <div className="w-56 h-44 rounded-2xl flex items-center justify-center shadow-2xl"
-                 style={{ background: "linear-gradient(135deg, #1a2a6e 0%, #0d1a3e 100%)", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <div className="text-center space-y-3">
-                <div className="text-6xl opacity-40">❓</div>
-                <div className="w-8 h-1 mx-auto rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.2)" }} />
-              </div>
-            </div>
-
-            <div className="w-full max-w-sm space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0"
-                     style={{ background: "#f39c12", color: "#fff" }}>C</div>
-                <div>
-                  <p className="font-bold text-white text-sm">CryptoFarm 🌾</p>
-                  <p className="text-xs text-gray-400">Farm crypto every day!</p>
-                </div>
-              </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Collect coins, upgrade your farm and earn real USDT rewards daily. Join millions of players now!
-              </p>
-              <div className="inline-block px-2 py-0.5 rounded text-xs text-gray-500" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>Ad</div>
-            </div>
-
-            <p className="text-xs text-gray-600">ads by Monetag</p>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-1 bg-slate-800">
-            <div
-              className="h-full bg-purple-500 transition-all duration-1000"
-              style={{ width: `${((AD_DURATION - adCountdown) / AD_DURATION) * 100}%` }}
-            />
-          </div>
-
-          {/* Buttons */}
-          <div className="px-4 py-4 space-y-3" style={{ background: "#0a0f1e", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <button
-              onClick={handleAdClaim}
-              disabled={!adCanClaim || adLoading}
-              style={{
-                width: "100%", height: 56, borderRadius: 14, fontWeight: 700, fontSize: 16,
-                border: "none", cursor: adCanClaim ? "pointer" : "not-allowed",
-                background: adCanClaim ? "linear-gradient(135deg, #22c55e, #16a34a)" : "rgba(34,197,94,0.12)",
-                color: adCanClaim ? "#fff" : "#4ade80",
-                boxShadow: adCanClaim ? "0 0 28px rgba(34,197,94,0.4)" : "none",
-                transition: "all 0.3s",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              }}
-            >
-              {adLoading
-                ? "⏳"
-                : adCanClaim
-                  ? "✅ استلام دورة مجانية 🎡"
-                  : <><span style={{ fontSize: 20 }}>⬇</span><span>جاري الاستلام... {adCountdown}</span></>
-              }
-            </button>
-            <button
-              onClick={closeAdOverlay}
-              style={{
-                width: "100%", height: 48, borderRadius: 12, fontWeight: 500, fontSize: 14,
-                background: "rgba(255,255,255,0.04)", color: "#94a3b8",
-                border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer",
-              }}
-            >
-              › استمر
-            </button>
-          </div>
-        </div>
+      {showAd && (
+        <AdOverlay
+          seconds={15}
+          rewardLabel="🎡 دورة إضافية"
+          onClaim={handleClaimSpinAd}
+          onClose={() => setShowAd(false)}
+        />
       )}
 
-      {/* ── Spin Wheel Card ───────────────────────────────────────────── */}
       <Card className="bg-gradient-to-b from-slate-900/80 to-slate-950 border-slate-700/50 shadow-xl overflow-hidden">
         <CardHeader className="border-b border-slate-800/50 bg-slate-900/30">
           <CardTitle className="flex items-center justify-between">
@@ -377,13 +226,14 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
             </div>
           </CardTitle>
         </CardHeader>
+
         <CardContent className="pt-8 pb-6 space-y-6">
+          {/* Wheel */}
           <div className="relative flex justify-center items-center">
             <div className="absolute w-64 h-64 bg-purple-600/10 rounded-full blur-3xl" />
             <canvas
               ref={canvasRef}
-              width={320}
-              height={320}
+              width={320} height={320}
               onClick={!isSpinning && user.spinsLeft > 0 ? handleSpin : undefined}
               className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && user.spinsLeft > 0 ? "hover:scale-105" : ""}`}
             />
@@ -394,6 +244,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
             )}
           </div>
 
+          {/* Spins indicator */}
           <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm text-gray-400">{t.remaining_tries}</span>
@@ -401,27 +252,28 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
             </div>
             <div className="flex gap-2 justify-center">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
-                    i < user.spinsLeft
-                      ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
-                      : "bg-slate-800"
-                  }`}
-                />
+                <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < user.spinsLeft ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]" : "bg-slate-800"}`} />
               ))}
             </div>
           </div>
 
+          {/* Spin button */}
           {user.spinsLeft > 0 ? (
             <>
-              <Button
+              <button
                 onClick={handleSpin}
                 disabled={isSpinning}
-                className="w-full h-14 text-lg font-black transition-all duration-300 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]"
+                className="w-full h-14 text-lg font-black transition-all duration-300 rounded-xl"
+                style={{
+                  background: "linear-gradient(135deg,#eab308,#ca8a04,#eab308)",
+                  color: "#0f172a",
+                  boxShadow: "0 4px 15px rgba(234,179,8,0.3)",
+                  border: "none", cursor: isSpinning ? "not-allowed" : "pointer",
+                  opacity: isSpinning ? 0.7 : 1,
+                }}
               >
                 {isSpinning ? t.spinning : t.spin_btn}
-              </Button>
+              </button>
               <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
                 {t.daily_spins_info}
               </p>
@@ -431,17 +283,28 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
               <div className="bg-slate-800/60 border border-purple-700/40 rounded-xl p-4 text-center space-y-1">
                 <p className="text-yellow-400 font-bold text-sm">{t.no_spins_left}</p>
                 <p className="text-gray-400 text-xs">{t.watch_ad_for_spin_desc}</p>
+                {adSpinsLeft > 0 && (
+                  <p className="text-purple-400 text-xs font-bold">{adSpinsLeft}/{MAX_AD_SPINS} {lang === "ar" ? "إعلان متبقي اليوم" : lang === "ru" ? "реклама осталась" : "ads left today"}</p>
+                )}
               </div>
-              <Button
-                onClick={handleWatchAdForSpin}
-                disabled={adLoading}
-                className="w-full h-14 text-base font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-[0_4px_20px_rgba(139,92,246,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                {adLoading
-                  ? <><span className="animate-spin">⏳</span> {t.loading_ad}</>
-                  : <><Tv2 className="h-5 w-5" /> {t.watch_ad_earn_spin}</>
-                }
-              </Button>
+
+              {adSpinsLeft > 0 ? (
+                <button
+                  onClick={() => setShowAd(true)}
+                  className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
+                  style={{
+                    background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                    color: "#fff",
+                    boxShadow: "0 4px 20px rgba(139,92,246,0.4)",
+                    border: "none", cursor: "pointer",
+                  }}
+                >
+                  <Tv2 className="h-5 w-5" /> {t.watch_ad_earn_spin}
+                </button>
+              ) : (
+                <div className="text-center py-3 text-xs text-gray-500">{t.daily_renewal}</div>
+              )}
+
               <p className="text-[10px] text-gray-500 text-center tracking-widest font-bold">
                 {t.daily_renewal}
               </p>
