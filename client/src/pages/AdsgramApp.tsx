@@ -8,6 +8,7 @@ import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
 import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
 import WithdrawSection from "@/components/adsgram/WithdrawSection";
 import ReferralSection from "@/components/adsgram/ReferralSection";
+import DailyGiftBox from "@/components/adsgram/DailyGiftBox";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 
@@ -225,6 +226,23 @@ export default function AdsgramApp() {
                   <p className="text-lg font-black text-yellow-400">⭐ {starsEquivalent}</p>
                 </div>
               </div>
+          </CardContent>
+        </Card>
+
+        {/* Daily Gift */}
+        <Card className="bg-slate-900/60 border border-purple-800/50 rounded-xl overflow-hidden">
+          <div className="px-4 pt-3 pb-1" style={{ background: "linear-gradient(135deg,rgba(88,28,135,0.35),rgba(49,46,129,0.35))", borderBottom: "1px solid rgba(147,51,234,0.2)" }}>
+            <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
+              🎁 {t.daily_gift_title}
+            </CardTitle>
+          </div>
+          <CardContent className="p-4 flex justify-center">
+            <DailyGiftBox
+              telegramId={safeUser.telegramId}
+              initData={typeof window !== "undefined" && window.Telegram?.WebApp ? window.Telegram.WebApp.initData || "" : ""}
+              lang={lang}
+              onClaim={(update) => setUser(prev => prev ? { ...prev, ...update } : prev)}
+            />
           </CardContent>
         </Card>
 
