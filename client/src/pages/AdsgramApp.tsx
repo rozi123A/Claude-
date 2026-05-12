@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Zap, Gift, TrendingUp, Wallet, Award, Globe, History } from "lucide-react";
+import { AlertCircle, Zap, Gift, TrendingUp, Wallet, Award, Globe, History, Bell, BellOff } from "lucide-react";
 import { translations, type Language } from "@/lib/i18n";
 import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
 import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
@@ -108,6 +108,12 @@ export default function AdsgramApp() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("home");
   const [lang, setLang] = useState<Language>("ar");
+  const [notifStatus, setNotifStatus] = useState<"unknown"|"granted"|"denied"|"unsupported">(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+    return (Notification.permission as any) === "granted" ? "granted"
+         : Notification.permission === "denied" ? "denied"
+         : "unknown";
+  });
   const { toast } = useToast();
   
   const t = translations[lang];
@@ -116,6 +122,17 @@ export default function AdsgramApp() {
     const langs: Language[] = ["ar", "en", "ru"];
     const nextIndex = (langs.indexOf(lang) + 1) % langs.length;
     setLang(langs[nextIndex]);
+  };
+
+  const requestNotifications = async () => {
+    if (!("Notification" in window)) { setNotifStatus("unsupported"); return; }
+    try {
+      const perm = await Notification.requestPermission();
+      setNotifStatus(perm === "granted" ? "granted" : "denied");
+      if (perm === "granted") {
+        toast({ title: "✅ تم التفعيل", description: "ستصلك إشعارات المكافآت والعروض!" });
+      }
+    } catch { setNotifStatus("unsupported"); }
   };
   
   const getUserMutation = trpc.telegram.getUser.useMutation();
@@ -236,6 +253,38 @@ export default function AdsgramApp() {
             <span className="text-[10px] font-bold uppercase">{lang === "ar" ? "🇸🇦" : lang === "en" ? "🇬🇧" : "🇷🇺"}</span>
           </Button>
         </div>
+
+        {/* Monetag Push Notification Banner */}
+        {notifStatus === "unknown" && (
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border"
+            style={{ background: "linear-gradient(135deg,rgba(234,179,8,0.12),rgba(168,85,247,0.12))", borderColor: "rgba(234,179,8,0.3)" }}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2 bg-yellow-500/20 rounded-lg shrink-0">
+                <Bell className="h-4 w-4 text-yellow-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-yellow-300">فعّل الإشعارات واستقبل العروض!</p>
+                <p className="text-[10px] text-gray-400">لا تفوّت أي مكافأة أو عرض حصري</p>
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={requestNotifications}
+                className="text-[11px] font-black px-3 py-1.5 rounded-lg bg-yellow-500 text-black hover:bg-yellow-400 transition-colors"
+              >
+                تفعيل
+              </button>
+              <button
+                onClick={() => setNotifStatus("denied")}
+                className="text-[11px] text-gray-500 px-2 py-1.5 rounded-lg hover:text-gray-300 transition-colors"
+              >
+                لا
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Balance Card */}
         <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 border-none shadow-xl">
