@@ -30,6 +30,28 @@ const PRIZES = [
   { label: "250",  value: 250,  color: "#FD79A8" },
 ];
 
+const MAX_AD_SPINS_PER_DAY = 5;
+const LS_KEY_COUNT = "spinAdCount";
+const LS_KEY_DATE  = "spinAdDate";
+
+function getTodayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+function getAdSpinsUsed(): number {
+  try {
+    const date = localStorage.getItem(LS_KEY_DATE);
+    if (date !== getTodayStr()) { localStorage.setItem(LS_KEY_COUNT, "0"); localStorage.setItem(LS_KEY_DATE, getTodayStr()); return 0; }
+    return parseInt(localStorage.getItem(LS_KEY_COUNT) || "0", 10);
+  } catch { return 0; }
+}
+function incrementAdSpins() {
+  try {
+    const used = getAdSpinsUsed();
+    localStorage.setItem(LS_KEY_COUNT, String(used + 1));
+    localStorage.setItem(LS_KEY_DATE, getTodayStr());
+  } catch {}
+}
+
 function getAudioCtx(): AudioContext | null {
   try { return new (window.AudioContext || (window as any).webkitAudioContext)(); } catch { return null; }
 }
@@ -61,12 +83,18 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [showAd, setShowAd] = useState(false);
+  const [adSpinsUsed, setAdSpinsUsed] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const { toast } = useToast();
 
   const spinMutation = trpc.spin.perform.useMutation();
   const getTokenMutation = trpc.ads.getToken.useMutation();
   const claimMutation = trpc.ads.claim.useMutation();
+
+  // Load ad spins count from localStorage on mount
+  useEffect(() => {
+    setAdSpinsUsed(getAdSpinsUsed());
+  }, []);
 
   useEffect(() => { drawWheel(); }, [rotation]);
 
@@ -99,25 +127,23 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
     ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke();
   };
 
-  /* ── Claim spin reward after watching ad ── */
   const handleClaimSpinAd = async () => {
     const initData = window.Telegram?.WebApp?.initData || "";
     const tokenData = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
     if (!tokenData.success || !tokenData.token) throw new Error(tokenData.message || "فشل");
-
     const claimData = await claimMutation.mutateAsync({
-      telegramId: user.telegramId,
-      token: tokenData.token,
-      initData,
-      type: "spin",
+      telegramId: user.telegramId, token: tokenData.token, initData, type: "spin",
     });
-
     if (!claimData.success) throw new Error(claimData.message || "فشل استلام المكافأة");
+
+    // Track locally
+    incrementAdSpins();
+    const newUsed = getAdSpinsUsed();
+    setAdSpinsUsed(newUsed);
 
     toast({ title: "🎉 مبروك!", description: `حصلت على دورة إضافية و ${claimData.reward} نقطة!` });
     onReward(claimData.balance !== undefined && claimData.spinsLeft !== undefined
-      ? { balance: Number(claimData.balance), spinsLeft: Number(claimData.spinsLeft) }
-      : undefined
+      ? { balance: Number(claimData.balance), spinsLeft: Number(claimData.spinsLeft) } : undefined
     );
     setShowAd(false);
   };
@@ -147,22 +173,23 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
           if (actx) playWinSound(actx);
           toast({ title: "🎉 مبروك!", description: `لقد ربحت ${data.prize} نقطة!` });
           onReward(data.balance !== undefined && data.spinsLeft !== undefined
-            ? { balance: Number(data.balance), spinsLeft: Number(data.spinsLeft) }
-            : undefined
+            ? { balance: Number(data.balance), spinsLeft: Number(data.spinsLeft) } : undefined
           );
           setIsSpinning(false);
         }
       };
       animate();
-    } catch (err: any) {
+    } catch {
       toast({ title: "خطأ", description: "حدث خطأ أثناء الدوران", variant: "destructive" });
       setIsSpinning(false);
     }
   };
 
+  const adSpinsRemaining = MAX_AD_SPINS_PER_DAY - adSpinsUsed;
+  const canWatchAdForSpin = adSpinsRemaining > 0 && !isSpinning;
+
   return (
     <>
-      {/* Ad overlay for getting extra spin */}
       {showAd && (
         <AdOverlay
           seconds={15}
@@ -189,7 +216,9 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
             </div>
           </CardTitle>
         </CardHeader>
+
         <CardContent className="pt-8 pb-6 space-y-6">
+          {/* Wheel */}
           <div className="relative flex justify-center items-center">
             <div className="absolute w-64 h-64 bg-purple-600/10 rounded-full blur-3xl" />
             <canvas
@@ -197,7 +226,7 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
               width={320}
               height={320}
               onClick={!isSpinning && user.spinsLeft > 0 ? handleSpin : undefined}
-              className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && user.spinsLeft > 0 ? "hover:scale-105" : ""}`}
+              className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-transform ${!isSpinning && user.spinsLeft > 0 ? "cursor-pointer hover:scale-105" : "cursor-default opacity-70"}`}
             />
             {!isSpinning && user.spinsLeft > 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
@@ -206,9 +235,10 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
             )}
           </div>
 
+          {/* Free spins progress */}
           <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm text-gray-400">المحاولات المتبقية</span>
+              <span className="text-sm text-gray-400">السبينات المجانية</span>
               <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 5</span>
             </div>
             <div className="flex gap-2 justify-center">
@@ -218,37 +248,97 @@ export default function SpinWheelSection({ user, onReward, onSwitchToAds }: Spin
             </div>
           </div>
 
+          {/* Spin button */}
           {user.spinsLeft > 0 ? (
-            <>
-              <Button
-                onClick={handleSpin}
-                disabled={isSpinning}
-                className="w-full h-14 text-lg font-black transition-all duration-300 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]"
-              >
-                {isSpinning ? "جاري الدوران..." : "إبدأ الدوران الآن 🎡"}
-              </Button>
-              <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
-                تحصل على 5 محاولات مجانية يومياً
-              </p>
-            </>
+            <Button
+              onClick={handleSpin}
+              disabled={isSpinning}
+              className="w-full h-14 text-lg font-black transition-all duration-300 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:scale-[1.02] active:scale-[0.98] text-slate-950 shadow-[0_4px_15px_rgba(234,179,8,0.3)]"
+            >
+              {isSpinning ? "جاري الدوران..." : "إبدأ الدوران الآن 🎡"}
+            </Button>
           ) : (
-            <div className="space-y-3">
-              <div className="bg-slate-800/60 border border-purple-700/40 rounded-xl p-4 text-center space-y-1">
-                <p className="text-yellow-400 font-bold text-sm">انتهت دوراتك اليومية!</p>
-                <p className="text-gray-400 text-xs">شاهد إعلاناً قصيراً للحصول على دورة إضافية</p>
-              </div>
-              <Button
-                onClick={() => setShowAd(true)}
-                disabled={isSpinning}
-                className="w-full h-14 text-base font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-[0_4px_20px_rgba(139,92,246,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <Tv2 className="h-5 w-5" /> شاهد إعلان واربح دورة 🎡
-              </Button>
-              <p className="text-[10px] text-gray-500 text-center tracking-widest font-bold">
-                تجدد الدورات المجانية كل يوم
-              </p>
+            <div className="flex items-center justify-center py-2 px-4 bg-slate-800/40 rounded-xl border border-slate-700/30">
+              <p className="text-xs text-gray-500 font-bold">انتهت سبيناتك المجانية — شاهد إعلان للحصول على المزيد ↓</p>
             </div>
           )}
+
+          {/* ══════════════════════════════════════════
+              Watch Ad → Get Spin  (always visible)
+          ══════════════════════════════════════════ */}
+          <div
+            className="rounded-xl border overflow-hidden"
+            style={{ borderColor: "rgba(139,92,246,0.35)", background: "linear-gradient(135deg,rgba(88,28,135,0.25),rgba(49,46,129,0.25))" }}
+          >
+            {/* Header row */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: "rgba(139,92,246,0.2)" }}>
+              <div className="flex items-center gap-2">
+                <Tv2 className="h-4 w-4 text-purple-400" />
+                <span className="text-xs font-black text-purple-300 uppercase tracking-wide">إعلانات السبينات اليومية</span>
+              </div>
+              {/* Counter badge */}
+              <div
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black"
+                style={{
+                  background: adSpinsRemaining > 0 ? "rgba(139,92,246,0.3)" : "rgba(71,85,105,0.4)",
+                  color: adSpinsRemaining > 0 ? "#c4b5fd" : "#6b7280",
+                  border: adSpinsRemaining > 0 ? "1px solid rgba(139,92,246,0.5)" : "1px solid rgba(71,85,105,0.4)",
+                }}
+              >
+                <span>{adSpinsUsed}</span>
+                <span className="opacity-50">/</span>
+                <span>{MAX_AD_SPINS_PER_DAY}</span>
+                <span className="ml-1">🎡</span>
+              </div>
+            </div>
+
+            {/* Progress dots */}
+            <div className="flex gap-1.5 px-4 py-2">
+              {Array.from({ length: MAX_AD_SPINS_PER_DAY }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-1.5 flex-1 rounded-full transition-all duration-500"
+                  style={{
+                    background: i < adSpinsUsed
+                      ? "linear-gradient(90deg,#7c3aed,#6d28d9)"
+                      : "rgba(71,85,105,0.4)"
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Button area */}
+            <div className="px-4 pb-4">
+              {adSpinsRemaining > 0 ? (
+                <>
+                  <Button
+                    onClick={() => setShowAd(true)}
+                    disabled={isSpinning}
+                    className="w-full h-12 font-black text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 20px rgba(124,58,237,0.4)" }}
+                  >
+                    <Tv2 className="h-4 w-4" />
+                    شاهد إعلان ← دورة مجانية 🎡
+                    <span
+                      className="mr-1 px-2 py-0.5 rounded-full text-[10px] font-black"
+                      style={{ background: "rgba(255,255,255,0.2)" }}
+                    >
+                      {adSpinsRemaining} متبقية
+                    </span>
+                  </Button>
+                  <p className="text-center text-[10px] text-gray-600 mt-2">
+                    كل إعلان = دورة واحدة مجانية • يتجدد كل يوم
+                  </p>
+                </>
+              ) : (
+                <div className="text-center py-2">
+                  <p className="text-xs text-gray-500 font-bold">وصلت لحد الإعلانات اليومي</p>
+                  <p className="text-[10px] text-gray-600 mt-1">تجدد الدورات المجانية غداً 🌙</p>
+                </div>
+              )}
+            </div>
+          </div>
+
         </CardContent>
       </Card>
     </>
