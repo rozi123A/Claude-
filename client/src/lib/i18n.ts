@@ -37,6 +37,13 @@ export const translations = {
     type_withdraw: "طلب سحب",
     points: "نقطة",
     change_lang: "اللغة",
+    // Daily Gift
+    daily_gift_title: "الهدية اليومية",
+    daily_gift_ready: "🎁 اضغط لاستلام هديتك!",
+    daily_gift_next: "الهدية القادمة في",
+    daily_gift_wait: "لم يحن وقت الهدية بعد",
+    daily_gift_error: "خطأ في استلام الهدية",
+    type_daily: "🎁 هدية يومية",
     // Withdraw
     withdraw_title: "سحب الأرباح",
     withdraw_info: "السحب يتم بشكل حقيقي إلى محفظة Telegram Stars الخاصة بك",
@@ -127,6 +134,13 @@ export const translations = {
     type_withdraw: "Withdrawal Request",
     points: "Points",
     change_lang: "Language",
+    // Daily Gift
+    daily_gift_title: "Daily Gift",
+    daily_gift_ready: "🎁 Tap to claim your gift!",
+    daily_gift_next: "Next gift in",
+    daily_gift_wait: "Gift not ready yet",
+    daily_gift_error: "Error claiming gift",
+    type_daily: "🎁 Daily Gift",
     // Withdraw
     withdraw_title: "Withdraw Earnings",
     withdraw_info: "Withdrawal is sent directly to your Telegram Stars wallet",
@@ -217,6 +231,13 @@ export const translations = {
     type_withdraw: "Запрос на вывод",
     points: "Очков",
     change_lang: "Язык",
+    // Daily Gift
+    daily_gift_title: "Ежедневный подарок",
+    daily_gift_ready: "🎁 Нажмите для получения подарка!",
+    daily_gift_next: "Следующий подарок через",
+    daily_gift_wait: "Подарок ещё не готов",
+    daily_gift_error: "Ошибка получения подарка",
+    type_daily: "🎁 Ежедневный подарок",
     // Withdraw
     withdraw_title: "Вывод средств",
     withdraw_info: "Вывод отправляется прямо на ваш Telegram Stars кошелек",
