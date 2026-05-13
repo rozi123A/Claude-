@@ -175,3 +175,98 @@
     }
   }
 }
+
+
+  /* ========== PREMIUM BOT UI ANIMATIONS ========== */
+
+  /* Animated orb background */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.18;
+    animation: orbFloat 10s ease-in-out infinite;
+  }
+  .orb-1 {
+    width: 420px; height: 420px;
+    background: radial-gradient(circle, #7C3AED 0%, transparent 70%);
+    top: -120px; left: -120px;
+    animation-delay: 0s;
+  }
+  .orb-2 {
+    width: 320px; height: 320px;
+    background: radial-gradient(circle, #F59E0B 0%, transparent 70%);
+    top: 180px; right: -80px;
+    animation-delay: 3.5s;
+    opacity: 0.14;
+  }
+  .orb-3 {
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, #3B82F6 0%, transparent 70%);
+    bottom: 120px; left: 40%;
+    animation-delay: 6s;
+    opacity: 0.12;
+  }
+
+  @keyframes orbFloat {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    33%       { transform: translateY(-28px) scale(1.04); }
+    66%       { transform: translateY(14px) scale(0.97); }
+  }
+
+  /* Shimmer overlay on balance card */
+  .shimmer-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      rgba(255,255,255,0.03) 50%,
+      transparent 65%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 4s linear infinite;
+    border-radius: inherit;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* Glow pulse for CTA buttons */
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(245,158,11,0.3); }
+    50%       { box-shadow: 0 4px 36px rgba(245,158,11,0.6); }
+  }
+
+  /* Bounce-in for reward popups */
+  @keyframes bounceIn {
+    0%   { opacity: 0; transform: scale(0.4); }
+    60%  { opacity: 1; transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
+  /* Fade-up for cards */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Remove default tap highlight on mobile */
+  * { -webkit-tap-highlight-color: transparent; }
+
+  /* Smooth scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+  ::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 4px; }
+
+  /* Number inputs */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  
