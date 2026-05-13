@@ -173,8 +173,24 @@ import { useState, useEffect } from "react";
       }
     };
 
-    /* ================== LOGIN SCREEN ================== */
-    if (!authed) {
+    /* Block non-admin Telegram users */
+      const tgRuntime = typeof window !== "undefined" && !!(window as any)?.Telegram?.WebApp?.initData;
+      const tgUserId = tgRuntime ? (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.id : null;
+      const isTelegramNonAdmin = tgRuntime && tgUserId !== null && tgUserId !== 5279238199;
+
+      if (isTelegramNonAdmin) {
+        return (
+          <div style={{ minHeight: "100vh", background: "#070711", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 64, marginBottom: 16 }}>🚫</div>
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>غير مصرح</p>
+            </div>
+          </div>
+        );
+      }
+
+      /* ================== LOGIN SCREEN ================== */
+      if (!authed) {
       return (
         <div style={{
           minHeight: "100vh", background: "#070711",
