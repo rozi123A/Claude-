@@ -148,9 +148,10 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     bumpAdSpins();
     setAdSpinsUsed(getAdSpinsUsed());
     toast({ title: t.congrats, description: t.extra_spin_reward });
-    onReward(cl.balance !== undefined && cl.spinsLeft !== undefined
-      ? { balance: Number(cl.balance), spinsLeft: Number(cl.spinsLeft) } : undefined
-    );
+    // Always update — never skip balance update
+      const newBalSpin = cl.balance !== undefined ? Number(cl.balance) : user.balance + 100;
+      const newSpinCount = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
+      onReward({ balance: newBalSpin, spinsLeft: newSpinCount });
     setShowAd(false);
   }
 
@@ -182,9 +183,10 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
         else {
           if (actx) playWinSound(actx);
           toast({ title: t.congrats, description: `${t.won_points} ${data.prize} PTS` });
-          onReward(data.balance !== undefined && data.spinsLeft !== undefined
-            ? { balance: Number(data.balance), spinsLeft: Number(data.spinsLeft) } : undefined
-          );
+          // Always update balance after spin — never skip
+            const wonBalance = data.balance !== undefined ? Number(data.balance) : user.balance + (data.prize || 0);
+            const wonSpins = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
+            onReward({ balance: wonBalance, spinsLeft: wonSpins });
           setIsSpinning(false);
         }
       };
