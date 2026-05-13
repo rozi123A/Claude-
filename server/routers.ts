@@ -260,12 +260,13 @@ export const appRouter = router({
           metadata: JSON.stringify({ token: input.token, adType: input.type }),
         });
 
-        return { 
-          success: true, 
-          reward, 
-          balance: user?.balance, 
-          spinsLeft: user?.spinsLeft 
-        };
+        // Always return balance — use computed value as fallback if upsert returned null
+          return { 
+            success: true, 
+            reward, 
+            balance: user?.balance ?? updates.balance, 
+            spinsLeft: user?.spinsLeft ?? updates.spinsLeft 
+          };
       }),
   }),
 
@@ -312,7 +313,7 @@ export const appRouter = router({
           metadata: JSON.stringify({ prize }),
         });
 
-        return { success: true, prize, balance: user?.balance, spinsLeft: user?.spinsLeft };
+        return { success: true, prize, balance: user?.balance ?? (currentBalance + prize), spinsLeft: user?.spinsLeft ?? Math.max(0, currentSpins - 1) };
       }),
   }),
 
