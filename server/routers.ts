@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals, getReferralStats } from "./db";
+import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals, getReferralStats, getAdminStats, getAllTelegramUsersAdmin, getAllUsersForBroadcast, getInactiveUsers, banTelegramUser, getAllWithdrawals } from "./db";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
@@ -531,4 +531,101 @@ export const appRouter = router({
       }),
   }),
 
+
+    admin: router({
+      // Verify admin access — checks secret against env
+      verify: publicProcedure
+        .input(z.object({ secret: z.string() }))
+        .mutation(async ({ input }) => {
+          const adminSecret = process.env.ADMIN_SECRET || "";
+          const isValid = adminSecret.length > 0 && input.secret === adminSecret;
+          return { success: isValid };
+        }),
+
+      // Full stats for dashboard
+      getStats: publicProcedure
+        .input(z.object({ secret: z.string() }))
+        .query(async ({ input }) => {
+          const adminSecret = process.env.ADMIN_SECRET || "";
+          if (!adminSecret || input.secret !== adminSecret) return { success: false, data: null };
+          const stats = await getAdminStats();
+          return { success: true, data: stats };
+        }),
+
+      // Paginated users list
+      getUsers: publicProcedure
+        .input(z.object({ secret: z.string(), page: z.number().default(1) }))
+        .query(async ({ input }) => {
+          const adminSecret = process.env.ADMIN_SECRET || "";
+          if (!adminSecret || input.secret !== adminSecret) return { success: false, users: [] };
+          const limit = 20;
+          const offset = (input.page - 1) * limit;
+          const users = await getAllTelegramUsersAdmin(limit, offset);
+          return { success: true, users };
+        }),
+
+      // All withdrawals (with optional status filter)
+      getWithdrawals: publicProcedure
+        .input(z.object({ secret: z.string(), status: z.string().optional() }))
+        .query(async ({ input }) => {
+          const adminSecret = process.env.ADMIN_SECRET || "";
+          if (!adminSecret || input.secret !== adminSecret) return { success: false, withdrawals: [] };
+          const list = await getAllWithdrawals(input.status);
+          return { success: true, withdrawals: list };
+        }),
+
+      // Ban / unban a user
+      banUser: publicProcedure
+        .input(z.object({ secret: z.string(), telegramId: z.number(), ban: z.boolean() }))
+        .mutation(async ({ input }) => {
+          const adminSecret = process.env.ADMIN_SECRET || "";
+          if (!adminSecret || input.secret !== adminSecret) return { success: false, message: "غير مصرح" };
+          await banTelegramUser(input.telegramId, input.ban);
+          return { success: true };
+        }),
+
+      // Broadcast message to all users (or inactive only)
+      broadcast: publicProcedure
+        .input(z.object({
+          secret: z.string(),
+          message: z.string().min(1).max(1000),
+          targetGroup: z.enum(["all", "inactive"]).default("all"),
+        }))
+        .mutation(async ({ input }) => {
+          const adminSecret = process.env.ADMIN_SECRET || "";
+          if (!adminSecret || input.secret !== adminSecret) return { success: false, sent: 0, message: "غير مصرح" };
+
+          const botToken = ENV.botToken;
+          const webappUrl = process.env.WEBAPP_URL || process.env.FRONTEND_URL || "";
+          if (!botToken) return { success: false, sent: 0, message: "BOT_TOKEN غير مضبوط" };
+
+          let users: any[] = [];
+          if (input.targetGroup === "inactive") {
+            users = await getInactiveUsers(3, 300);
+          } else {
+            users = await getAllUsersForBroadcast(500);
+          }
+
+          let sent = 0;
+          const keyboard = webappUrl ? {
+            inline_keyboard: [[{ text: "🎮 افتح التطبيق", web_app: { url: webappUrl } }]]
+          } : undefined;
+
+          for (const u of users) {
+            try {
+              const payload: any = { chat_id: u.telegramId, text: input.message, parse_mode: "HTML" };
+              if (keyboard) payload.reply_markup = keyboard;
+              const r = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              if (r.ok) sent++;
+              await new Promise(res => setTimeout(res, 50));
+            } catch {}
+          }
+          return { success: true, sent, total: users.length };
+        }),
+    }),
+  
 });
