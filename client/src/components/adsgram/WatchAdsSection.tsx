@@ -64,7 +64,11 @@ import { useState, useEffect } from "react";
       if (!claimData.success) throw new Error(claimData.message || t.ad_error_desc);
       toast({ title: t.congrats, description: `${t.earned_points}: ${claimData.reward}` });
       const now = Date.now();
-      onReward(claimData.balance !== undefined ? { balance: Number(claimData.balance), todayAds: user.todayAds + 1, lastAdTime: now } : undefined);
+      // Always update balance optimistically — never skip the reward update
+        const newBalance = claimData.balance !== undefined
+          ? Number(claimData.balance)
+          : user.balance + (claimData.reward || 100);
+        onReward({ balance: newBalance, todayAds: user.todayAds + 1, lastAdTime: now });
       setCooldownRemaining(user.adCooldown);
       setShowAd(false); setAdToken(null);
     };
