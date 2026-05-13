@@ -438,4 +438,86 @@ export async function getReferralStats(telegramId: number) {
       return [];
     }
   }
+
+  // ===== ADMIN FUNCTIONS =====
+  export async function getAdminStats() {
+    const db = await getDb();
+    if (!db) return null;
+    try {
+      const [usersResult, txResult, withdrawResult, bannedResult] = await Promise.all([
+        db.select().from(telegramUsers),
+        db.select().from(transactions),
+        db.select().from(withdrawals).where(eq(withdrawals.status, "pending")),
+        db.select().from(telegramUsers).where(eq(telegramUsers.isBanned, "true")),
+      ]);
+      const totalPoints = txResult.filter((t: any) => t.points > 0).reduce((s: number, t: any) => s + Number(t.points), 0);
+      const adCount = txResult.filter((t: any) => t.type === "ad").length;
+      const spinCount = txResult.filter((t: any) => t.type === "spin").length;
+      const withdrawCount = txResult.filter((t: any) => t.type === "withdraw").length;
+      const pendingStars = withdrawResult.reduce((s: number, w: any) => s + Number(w.stars), 0);
+      return {
+        totalUsers: usersResult.length,
+        bannedUsers: bannedResult.length,
+        pendingWithdrawals: withdrawResult.length,
+        pendingStars,
+        totalTransactions: txResult.length,
+        totalPointsDistributed: totalPoints,
+        totalAdViews: adCount,
+        totalSpins: spinCount,
+        totalWithdrawals: withdrawCount,
+      };
+    } catch (err) {
+      console.error("[Database] getAdminStats failed:", err);
+      return null;
+    }
+  }
+
+  export async function getAllTelegramUsersAdmin(limit: number = 50, offset: number = 0) {
+    const db = await getDb();
+    if (!db) return [];
+    try {
+      return await db.select().from(telegramUsers).orderBy(desc(telegramUsers.createdAt)).limit(limit).offset(offset);
+    } catch (err) {
+      console.error("[Database] getAllTelegramUsersAdmin failed:", err);
+      return [];
+    }
+  }
+
+  export async function getAllUsersForBroadcast(limit: number = 500) {
+    const db = await getDb();
+    if (!db) return [];
+    try {
+      return await db.select({ telegramId: telegramUsers.telegramId, firstName: telegramUsers.firstName, username: telegramUsers.username })
+        .from(telegramUsers)
+        .where(eq(telegramUsers.isBanned, "false"))
+        .limit(limit);
+    } catch (err) {
+      console.error("[Database] getAllUsersForBroadcast failed:", err);
+      return [];
+    }
+  }
+
+  export async function banTelegramUser(telegramId: number, ban: boolean) {
+    const db = await getDb();
+    if (!db) return;
+    try {
+      await db.update(telegramUsers).set({ isBanned: ban ? "true" : "false" }).where(eq(telegramUsers.telegramId, telegramId));
+    } catch (err) {
+      console.error("[Database] banTelegramUser failed:", err);
+    }
+  }
+
+  export async function getAllWithdrawals(status?: string) {
+    const db = await getDb();
+    if (!db) return [];
+    try {
+      if (status) {
+        return await db.select().from(withdrawals).where(eq(withdrawals.status, status as any)).orderBy(desc(withdrawals.createdAt)).limit(100);
+      }
+      return await db.select().from(withdrawals).orderBy(desc(withdrawals.createdAt)).limit(100);
+    } catch (err) {
+      console.error("[Database] getAllWithdrawals failed:", err);
+      return [];
+    }
+  }
   
