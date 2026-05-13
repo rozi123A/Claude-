@@ -343,16 +343,8 @@ export const appRouter = router({
           }
         }
 
-        // Weighted random reward 200-1000 pts
-        const rewards = [200, 300, 400, 500, 750, 1000];
-        const weights = [35, 25, 20, 12, 6, 2];
-        let total = weights.reduce((a, b) => a + b, 0);
-        let rand = Math.random() * total;
-        let reward = rewards[0];
-        for (let i = 0; i < weights.length; i++) {
-          if (rand < weights[i]) { reward = rewards[i]; break; }
-          rand -= weights[i];
-        }
+         // الهدية اليومية ثابتة: 10 نقاط فقط (بعد مشاهدة إعلان)
+          const reward = 10;
 
         const now = new Date();
         completedTasksData.lastDailyGift = now.toISOString();
