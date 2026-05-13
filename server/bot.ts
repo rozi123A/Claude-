@@ -113,7 +113,27 @@ let isBotStarted = false;
     }
   });
 
-  bot.help((ctx) => {
+  const ADMIN_TELEGRAM_ID = 5279238199;
+
+    bot.command("admin", async (ctx) => {
+      if (ctx.from.id !== ADMIN_TELEGRAM_ID) {
+        await ctx.reply("❌ هذا الأمر للمشرف فقط.");
+        return;
+      }
+      const adminUrl = WEBAPP_URL ? `${WEBAPP_URL.replace(/\/+$/, "")}/admin` : null;
+      if (adminUrl) {
+        await ctx.reply(
+          "🛡️ مرحباً يا مشرف! افتح لوحة الإدارة:",
+          Markup.inlineKeyboard([
+            [Markup.button.webApp("🛡️ فتح لوحة الإدارة", adminUrl)]
+          ])
+        );
+      } else {
+        await ctx.reply("⚠️ WEBAPP_URL غير مهيأ.");
+      }
+    });
+
+    bot.help((ctx) => {
     ctx.reply("استخدم الزر 'فتح التطبيق' للوصول إلى واجهة الكسب الخاصة بك.");
   });
 
