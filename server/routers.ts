@@ -125,8 +125,8 @@ export const appRouter = router({
           if (input.referredBy && input.referredBy !== input.telegramId) {
             const inviter = await getTelegramUser(input.referredBy);
             if (inviter) {
-              // Inviter gets 500 points
-              const inviterBonus = 500;
+              // Inviter gets 100 points
+              const inviterBonus = 100;
               await upsertTelegramUser({
                 ...inviter,
                 balance: Number(inviter.balance) + inviterBonus,
@@ -379,7 +379,7 @@ export const appRouter = router({
 
   withdraw: router({
     // Create a new withdrawal request
-    create: publicProcedure
+    request: publicProcedure
       .input(z.object({ telegramId: z.number(), amount: z.number(), initData: z.string() }))
       .mutation(async ({ input }) => {
         const verified = verifyTelegramWebApp(input.initData);
