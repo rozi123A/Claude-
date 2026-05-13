@@ -14,7 +14,43 @@ const PUBLIC_URL =
 // Global flag to prevent multiple instances in the same process
 let isBotStarted = false;
 
-export async function startBot(app?: Express) {
+
+  // ===== نظام إشعارات المستخدمين الغائبين =====
+  async function sendInactivityReminders(bot: Telegraf, webappUrl: string) {
+    try {
+      const inactiveUsers = await getInactiveUsers(3, 50);
+      let sent = 0;
+      for (const user of inactiveUsers) {
+        try {
+          const name = user.firstName || user.username || "صديقي";
+          await bot.telegram.sendMessage(
+            user.telegramId,
+            `👋 مرحباً ${name}!\n\n` +
+            `لاحظنا أنك لم تلعب منذ فترة 😔\n\n` +
+            `🎁 لديك ${user.spinsLeft} دورة مجانية بانتظارك!\n` +
+            `💰 رصيدك الحالي: ${user.balance} نقطة\n\n` +
+            `تعال والعب الآن واربح أكثر! 🚀`,
+            webappUrl ? {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "🎮 العب الآن!", web_app: { url: webappUrl } }]
+                ]
+              }
+            } : undefined
+          );
+          sent++;
+          await new Promise(r => setTimeout(r, 1000));
+        } catch (err: any) {
+          console.warn(`[Bot] Failed to notify user ${user.telegramId}:`, err?.message);
+        }
+      }
+      console.log(`[Bot] Sent inactivity reminders to ${sent}/${inactiveUsers.length} users`);
+    } catch (err) {
+      console.error("[Bot] Error in sendInactivityReminders:", err);
+    }
+  }
+
+  export async function startBot(app?: Express) {
   if (!BOT_TOKEN) {
     console.warn("[Bot] BOT_TOKEN is not set. Bot will not start.");
     return;
@@ -27,6 +63,15 @@ export async function startBot(app?: Express) {
   isBotStarted = true;
 
   const bot = new Telegraf(BOT_TOKEN);
+
+    // تشغيل فحص المستخدمين الغائبين كل يوم الساعة 10 صباحاً
+    setInterval(async () => {
+      const now = new Date();
+      if (now.getHours() === 10 && now.getMinutes() === 0) {
+        console.log("[Bot] Running daily inactivity check...");
+        await sendInactivityReminders(bot, WEBAPP_URL || "");
+      }
+    }, 60 * 1000);
 
   // Setup bot commands and handlers (Logic remains untouched)
   bot.start(async (ctx) => {
