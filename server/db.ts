@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, telegramUsers, transactions, withdrawals, adTokens, settings, InsertTelegramUser, InsertTransaction, InsertWithdrawal, InsertAdToken, InsertSetting } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -414,3 +414,28 @@ export async function getReferralStats(telegramId: number) {
     return { count: 0, totalEarned: 0 };
   }
 }
+
+  // ===== نظام الإشعارات: جلب المستخدمين الغائبين =====
+  export async function getInactiveUsers(daysSinceLastActivity: number = 3, limit: number = 50) {
+    const db = await getDb();
+    if (!db) return [];
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysSinceLastActivity);
+      const inactive = await db
+        .select()
+        .from(telegramUsers)
+        .where(
+          and(
+            lt(telegramUsers.updatedAt, cutoffDate),
+            eq(telegramUsers.isBanned, "false")
+          )
+        )
+        .limit(limit);
+      return inactive;
+    } catch (error) {
+      console.error("[Database] Failed to get inactive users:", error);
+      return [];
+    }
+  }
+  
