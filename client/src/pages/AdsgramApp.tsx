@@ -83,6 +83,7 @@ import { useState, useEffect, useCallback } from "react";
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("home");
     const [lang, setLang] = useState<Language>("ar");
+  const [displayName, setDisplayName] = useState("");
     const { toast } = useToast();
     const t = translations[lang];
     const getUserMutation = trpc.telegram.getUser.useMutation();
@@ -103,6 +104,7 @@ import { useState, useEffect, useCallback } from "react";
           const telegramUser = tg.initDataUnsafe?.user;
           const startParam = tg.initDataUnsafe?.start_param;
           if (!telegramUser) { setUser(DEFAULT_DEMO_USER); setLoading(false); return; }
+          setDisplayName(telegramUser.first_name || telegramUser.username || "");
           try {
             const data = await getUserMutation.mutateAsync({
               telegramId: telegramUser.id,
@@ -177,9 +179,9 @@ import { useState, useEffect, useCallback } from "react";
               {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6 }}>
                 <div>
-                  <p style={{ fontSize: 10, color: "rgba(139,92,246,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>مرحباً بك في</p>
+                  <p style={{ fontSize: 10, color: "rgba(139,92,246,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>مرحباً بك</p>
                   <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0, background: "linear-gradient(135deg, #FFD700 0%, #F59E0B 50%, #EF4444 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                    Start Coin ✨
+                    {displayName} ✨
                   </h1>
                 </div>
                 <button onClick={toggleLanguage} style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 24, padding: "8px 14px", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>
