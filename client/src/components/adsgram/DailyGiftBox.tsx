@@ -84,7 +84,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
         setNextClaim(next);
         setTimeLeft(getTimeLeft(next));
         try { localStorage.setItem(LS_KEY(telegramId), String(next)); } catch {}
-        onClaim({ balance: result.balance as number, totalEarned: result.totalEarned as number });
+        onClaim({ balance: Number(result.balance ?? 0), totalEarned: Number(result.totalEarned ?? 0) });
         setTimeout(() => setShowReward(false), 2500);
       } else {
         if (result.nextClaim) {
