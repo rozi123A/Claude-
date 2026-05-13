@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
   import { trpc } from "@/lib/trpc";
   import { useToast } from "@/hooks/use-toast";
   import {
@@ -90,7 +90,27 @@ import { useState } from "react";
     const { toast } = useToast();
 
     const verifyMut = trpc.admin.verify.useMutation();
-    const broadcastMut = trpc.admin.broadcast.useMutation();
+      const broadcastMut = trpc.admin.broadcast.useMutation();
+
+      // Auto-auth when opened from Telegram as admin
+      useEffect(() => {
+        if (authed) return;
+        try {
+          const tg = (window as any)?.Telegram?.WebApp;
+          if (!tg) return;
+          const tgUser = tg.initDataUnsafe?.user;
+          if (tgUser?.id === 5279238199) {
+            const autoSecret = sessionStorage.getItem("adminSecret") || "12345";
+            verifyMut.mutateAsync({ secret: autoSecret }).then(res => {
+              if (res.success) {
+                sessionStorage.setItem("adminSecret", autoSecret);
+                setSecret(autoSecret);
+                setAuthed(true);
+              }
+            }).catch(() => {});
+          }
+        } catch {}
+      }, []);
     const banMut = trpc.admin.banUser.useMutation();
 
     const statsQ = trpc.admin.getStats.useQuery({ secret }, { enabled: authed, refetchInterval: 30000 });
@@ -281,8 +301,14 @@ import { useState } from "react";
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 600, margin: 0 }}>Admin Panel</p>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => statsQ.refetch()}
+                <button
+                  onClick={() => { window.location.href = "/"; }}
+                  style={{ height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", cursor: "pointer", padding: "0 14px", display: "flex", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.5)", fontWeight: 700, fontSize: 12 }}
+                >
+                  ← رجوع
+                </button>
+                <button
+                  onClick={() => statsQ.refetch()}
                 style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)" }}
               >
                 <RefreshCw size={16} />
