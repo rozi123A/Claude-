@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-  import { Home, Play, Gift, Users, Wallet, ChevronRight, History } from "lucide-react";
+  import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield } from "lucide-react";
   import { translations, type Language } from "@/lib/i18n";
   import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
   import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
@@ -141,6 +141,8 @@ import { useState, useEffect, useCallback } from "react";
     );
 
     const safeUser = user || DEFAULT_DEMO_USER;
+    const ADMIN_ID = 5279238199;
+    const isAdmin = safeUser.telegramId === ADMIN_ID;
     const starsEquivalent = Math.floor(safeUser.balance / safeUser.starsRate);
 
     const NAV = [
@@ -149,10 +151,12 @@ import { useState, useEffect, useCallback } from "react";
       { id: "spin", icon: Gift, label: t.spin || "العجلة", emoji: "🎡" },
       { id: "friends", icon: Users, label: "أصدقاء", emoji: "👥" },
       { id: "withdraw", icon: Wallet, label: t.withdraw || "السحب", emoji: "💸" },
+      ...(isAdmin ? [{ id: "admin", icon: Shield, label: "إدارة", emoji: "🛡️" }] : []),
     ];
 
     const tabAccent: Record<string, string> = {
-      home: "#8B5CF6", ads: "#F59E0B", spin: "#EC4899", friends: "#3B82F6", withdraw: "#10B981"
+      home: "#8B5CF6", ads: "#F59E0B", spin: "#EC4899", friends: "#3B82F6", withdraw: "#10B981",
+      admin: "#7C3AED"
     };
     const accent = tabAccent[activeTab];
 
@@ -328,7 +332,7 @@ import { useState, useEffect, useCallback } from "react";
               const active = activeTab === id;
               const c = tabAccent[id];
               return (
-                <button key={id} onClick={() => setActiveTab(id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 2px 6px", background: "none", border: "none", cursor: "pointer", position: "relative", borderRadius: 18, transition: "all 0.2s" }}>
+                <button key={id} onClick={() => { if (id === "admin") { window.location.href = "/admin"; return; } setActiveTab(id); }} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 2px 6px", background: "none", border: "none", cursor: "pointer", position: "relative", borderRadius: 18, transition: "all 0.2s" }}>
                   {active && <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 28, height: 2.5, borderRadius: 2, background: `linear-gradient(90deg, ${c}, ${c}aa)` }} />}
                   <div style={{ width: 40, height: 36, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: active ? `${c}22` : "transparent", transition: "all 0.2s" }}>
                     <Icon size={19} style={{ color: active ? c : "rgba(255,255,255,0.28)", transition: "all 0.2s" }} />
