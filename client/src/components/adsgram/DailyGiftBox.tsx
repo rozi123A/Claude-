@@ -1,3 +1,4 @@
+import { showMonetagAd } from "@/lib/monetag";
 import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
@@ -65,6 +66,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
       if (result.success && result.reward) {
         setReward(result.reward);
         setShowReward(true);
+        showMonetagAd(); // Monetag ad after daily gift claim
         const next = result.nextClaim ?? Date.now() + 24 * 60 * 60 * 1000;
         setNextClaim(next);
         setTimeLeft(getTimeLeft(next));
