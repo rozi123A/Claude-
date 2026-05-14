@@ -1,3 +1,4 @@
+import { showMonetagAd } from "@/lib/monetag";
 import { useState, useEffect, useRef } from "react";
 import { Play, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -70,6 +71,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
   const handleWatchAd = async () => {
     if (user.todayAds >= 50) {
       toast({ title: t.notice, description: t.daily_ad_warning, variant: "destructive" });
+      showMonetagAd(); // Monetag ad when 50-ad daily limit is reached
       return;
     }
     if (cooldownRemaining > 0) {
