@@ -439,6 +439,28 @@ export async function getReferralStats(telegramId: number) {
     }
   }
 
+  // ===== LEADERBOARD =====
+  export async function getLeaderboard(limit = 20) {
+    const db = await getDb();
+    if (!db) return [];
+    try {
+      return await db
+        .select({
+          telegramId: telegramUsers.telegramId,
+          username:   telegramUsers.username,
+          firstName:  telegramUsers.firstName,
+          totalEarned: telegramUsers.totalEarned,
+          balance:    telegramUsers.balance,
+        })
+        .from(telegramUsers)
+        .orderBy(desc(telegramUsers.totalEarned))
+        .limit(limit);
+    } catch {
+      return [];
+    }
+  }
+
+  
   // ===== ADMIN FUNCTIONS =====
   export async function getAdminStats() {
     const db = await getDb();
