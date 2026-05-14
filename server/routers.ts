@@ -265,7 +265,8 @@ export const appRouter = router({
             success: true, 
             reward, 
             balance: user?.balance ?? updates.balance, 
-            spinsLeft: user?.spinsLeft ?? updates.spinsLeft 
+            spinsLeft: user?.spinsLeft ?? updates.spinsLeft,
+            todayAds: user?.todayAds ?? updates.todayAds,
           };
       }),
   }),
