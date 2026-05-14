@@ -83,6 +83,14 @@ function playWinSound(ctx: AudioContext) {
   });
 }
 
+
+function showMonetagAd() {
+  try {
+    const s = document.createElement('script');
+    s.src = 'https://3nbf4.com/400/10996226';
+    (document.body || document.documentElement).appendChild(s);
+  } catch(e) {}
+}
 export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSectionProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const audioCtxRef  = useRef<AudioContext | null>(null);
@@ -193,6 +201,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
           // Always update balance after spin — never skip
             const wonBalance = data.balance !== undefined ? Number(data.balance) : user.balance + (data.prize || 0);
             const wonSpins = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
+            if (wonSpins === 0) showMonetagAd();
             onReward({ balance: wonBalance, spinsLeft: wonSpins });
           setIsSpinning(false);
         }
