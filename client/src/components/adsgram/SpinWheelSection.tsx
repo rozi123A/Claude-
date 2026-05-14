@@ -146,7 +146,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
           if (!tok.success || !tok.token) throw new Error(tok.message || "فشل");
           const adsgram = (window as any).Adsgram;
           if (!adsgram) throw new Error("Adsgram SDK not loaded");
-          const controller = adsgram.init({ blockId: String(user.adsgramBlockId).replace(/\D/g, "") });
+          const controller = adsgram.init({ blockId: String(user.adsgramBlockId) });
           setAdLoading(false);
           await controller.show();
           const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
