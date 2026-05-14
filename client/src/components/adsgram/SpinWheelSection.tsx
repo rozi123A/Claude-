@@ -139,13 +139,14 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   }
 
   async function handleWatchSpinAd() {
+        const initData = (window as any).Telegram?.WebApp?.initData || "";
         setAdLoading(true);
         try {
           const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
           if (!tok.success || !tok.token) throw new Error(tok.message || "فشل");
           const adsgram = (window as any).Adsgram;
           if (!adsgram) throw new Error("Adsgram SDK not loaded");
-          const controller = adsgram.init({ blockId: String(user.adsgramBlockId) });
+          const controller = adsgram.init({ blockId: String(user.adsgramBlockId).replace(/\D/g, "") });
           setAdLoading(false);
           await controller.show();
           const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
