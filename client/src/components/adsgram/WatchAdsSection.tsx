@@ -49,7 +49,8 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
   const claimMutation = trpc.ads.claim.useMutation();
 
   // Validate blockId — must be non-empty and numeric
-  const blockId = user.adsgramBlockId?.replace(/[^0-9]/g, "") || "29281";
+  const blockId = user.adsgramBlockId?.replace(/[^0-9]/g, "") || ""
+  const adsEnabled = blockId.length >= 4;
 
   useEffect(() => {
     if (user.lastAdTime) {
