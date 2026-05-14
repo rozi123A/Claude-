@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-  import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield } from "lucide-react";
+  import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield, Trophy } from "lucide-react";
   import { translations, type Language } from "@/lib/i18n";
   import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
   import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
   import WithdrawSection from "@/components/adsgram/WithdrawSection";
   import ReferralSection from "@/components/adsgram/ReferralSection";
   import DailyGiftBox from "@/components/adsgram/DailyGiftBox";
+  import LeaderboardSection from "@/components/adsgram/LeaderboardSection";
   import { useToast } from "@/hooks/use-toast";
   import { trpc } from "@/lib/trpc";
 
@@ -152,12 +153,13 @@ import { useState, useEffect, useCallback } from "react";
       { id: "ads", icon: Play, label: t.ads || "إعلانات", emoji: "📺" },
       { id: "spin", icon: Gift, label: t.spin || "العجلة", emoji: "🎡" },
       { id: "friends", icon: Users, label: "أصدقاء", emoji: "👥" },
+      { id: "leaderboard", icon: Trophy, label: t.leaderboard || "المتصدرون", emoji: "🏆" },
       { id: "withdraw", icon: Wallet, label: t.withdraw || "السحب", emoji: "💸" },
       ...(isAdmin ? [{ id: "admin", icon: Shield, label: "إدارة", emoji: "🛡️" }] : []),
     ];
 
     const tabAccent: Record<string, string> = {
-      home: "#8B5CF6", ads: "#F59E0B", spin: "#EC4899", friends: "#3B82F6", withdraw: "#10B981",
+      home: "#8B5CF6", ads: "#F59E0B", spin: "#EC4899", friends: "#3B82F6", leaderboard: "#F59E0B", withdraw: "#10B981",
       admin: "#7C3AED"
     };
     const accent = tabAccent[activeTab];
@@ -326,6 +328,12 @@ import { useState, useEffect, useCallback } from "react";
             </div>
           )}
         </div>
+            {/* LEADERBOARD TAB */}
+            {activeTab === "leaderboard" && (
+              <div style={{ paddingTop: 6 }}>
+                <LeaderboardSection myTelegramId={safeUser.telegramId} lang={lang} />
+              </div>
+            )}
 
         {/* BOTTOM NAV */}
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100, display: "flex", justifyContent: "center", padding: "0 10px 10px" }}>
