@@ -19,15 +19,7 @@ import { useState, useEffect, useRef } from "react";
       onReward: (update?: { balance: number; todayAds: number; lastAdTime: number }) => void;
     }
 
-    
-function showMonetagAd() {
-  try {
-    const s = document.createElement('script');
-    s.src = 'https://3nbf4.com/400/10996226';
-    (document.body || document.documentElement).appendChild(s);
-  } catch(e) {}
-}
-export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectionProps) {
+    export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectionProps) {
       const [loading, setLoading] = useState(false);
       const [cooldownRemaining, setCooldownRemaining] = useState(0);
       const { toast } = useToast();
@@ -66,7 +58,6 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
       const handleWatchAd = async () => {
         if (user.todayAds >= 50) {
           toast({ title: t.notice, description: t.daily_ad_warning, variant: "destructive" });
-        showMonetagAd();
           return;
         }
         if (cooldownRemaining > 0) {
@@ -106,8 +97,6 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
           });
 
           if (claimData.success) {
-            const newTodayAds = (claimData.todayAds ?? user.todayAds + 1);
-            if (newTodayAds >= 50) showMonetagAd();
             toast({ title: t.congrats || "🎉 أحسنت!", description: `${t.earned_points || "ربحت"}: +${claimData.reward} نقطة` });
             onReward({ balance: claimData.balance, todayAds: claimData.todayAds, lastAdTime: Date.now() });
             setCooldownRemaining(user.adCooldown);
