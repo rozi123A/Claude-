@@ -73,7 +73,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
           const tok = await getTokenMutation.mutateAsync({ telegramId: tidNum, initData });
           const adsgram = (window as any).Adsgram;
           if (adsgram && tok.success && tok.token) {
-            const controller = adsgram.init({ blockId: "29281" });
+            const controller = adsgram.init({ blockId: "28381" });
             setAdLoading(false);
             await controller.show();
           }
