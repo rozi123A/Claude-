@@ -11,7 +11,6 @@ interface DailyGiftBoxProps {
 }
 
 const LS_KEY    = (id: number) => `daily_gift_next_${id}`;
-const LS_AD_KEY = (id: number) => `daily_gift_ad_watched_${id}`;
 
 function getTimeLeft(nextClaim: number): number {
   const diff = nextClaim - Date.now();
@@ -33,16 +32,10 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
   const [reward,     setReward]     = useState(0);
   const [showReward, setShowReward] = useState(false);
   const [isHovered,  setIsHovered]  = useState(false);
-  const [adWatched,  setAdWatched]  = useState<boolean>(() => {
-    try { return localStorage.getItem(LS_AD_KEY(telegramId)) === new Date().toISOString().split("T")[0]; } catch { return false; }
-  });
-  const [adLoading, setAdLoading] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast }   = useToast();
   const t           = translations[lang];
-  const getTokenMutation = trpc.ads.getToken.useMutation();
-  const adClaimMutation = trpc.ads.claim.useMutation();
   const claimMutation = trpc.dailyGift.claim.useMutation();
 
   const canClaim = timeLeft === 0;
@@ -58,30 +51,11 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [nextClaim]);
-
-  function markAdWatched() {
-    try { localStorage.setItem(LS_AD_KEY(telegramId), new Date().toISOString().split("T")[0]); } catch {}
     setAdWatched(true);
     }
 
   const handleBoxClick = async () => {
     if (!canClaim || isOpening) return;
-    if (!adWatched) {
-        setAdLoading(true);
-        try {
-          const tidNum = typeof telegramId === 'string' ? parseInt(telegramId) : telegramId;
-          const tok = await getTokenMutation.mutateAsync({ telegramId: tidNum, initData });
-          const adsgram = (window as any).Adsgram;
-          if (adsgram && tok.success && tok.token) {
-            const controller = adsgram.init({ blockId: "28381" });
-            setAdLoading(false);
-            await controller.show();
-          }
-        } catch {}
-        setAdLoading(false);
-        markAdWatched();
-        return;
-      }
     handleClaim();
   };
 
@@ -93,8 +67,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
       if (result.success && result.reward) {
         setReward(result.reward);
         setShowReward(true);
-        try { localStorage.removeItem(LS_AD_KEY(telegramId)); } catch {}
-        setAdWatched(false);
         const next = result.nextClaim ?? Date.now() + 24 * 60 * 60 * 1000;
         setNextClaim(next);
         setTimeLeft(getTimeLeft(next));
@@ -203,11 +175,8 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
           {canClaim ? (
             <div className="flex flex-col items-center gap-1">
               <p className="text-xs font-black text-yellow-400" style={{ animation: "giftPulse 1.5s ease-in-out infinite" }}>
-                {adLoading ? "⏳ جاري تحميل الإعلان..." : adWatched ? t.daily_gift_ready : "📺 شاهد إعلاناً لاستلام هديتك"}
+                {t.daily_gift_ready}
               </p>
-              {!adWatched && (
-                <p className="text-[10px] text-gray-500">اضغط على الصندوق لمشاهدة الإعلان</p>
-              )}
             </div>
           ) : (
             <>
