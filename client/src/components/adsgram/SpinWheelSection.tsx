@@ -89,7 +89,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   const audioCtxRef  = useRef<AudioContext | null>(null);
   const [isSpinning,  setIsSpinning]  = useState(false);
   const [rotation,    setRotation]    = useState(0);
-  const [showAd,      setShowAd]      = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
   const [adSpinsUsed, setAdSpinsUsed] = useState(0);
   const { toast } = useToast();
   const t = translations[lang];
@@ -139,21 +139,28 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke();
   }
 
-  async function handleClaimSpinAd() {
-    const initData = window.Telegram?.WebApp?.initData || "";
-    const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
-    if (!tok.success || !tok.token) throw new Error(tok.message || "فشل");
-    const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
-    if (!cl.success) throw new Error(cl.message || "فشل استلام المكافأة");
-    bumpAdSpins();
-    setAdSpinsUsed(getAdSpinsUsed());
-    toast({ title: t.congrats, description: t.extra_spin_reward });
-    // Always update — never skip balance update
-      const newBalSpin = cl.balance !== undefined ? Number(cl.balance) : user.balance + 100;
-      const newSpinCount = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
-      onReward({ balance: newBalSpin, spinsLeft: newSpinCount });
-    setShowAd(false);
-  }
+  async function handleWatchSpinAd() {
+        setAdLoading(true);
+        try {
+          const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
+          if (!tok.success || !tok.token) throw new Error(tok.message || "فشل");
+          const adsgram = (window as any).Adsgram;
+          if (!adsgram) throw new Error("Adsgram SDK not loaded");
+          const controller = adsgram.init({ blockId: String(user.adsgramBlockId) });
+          setAdLoading(false);
+          await controller.show();
+          const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
+          if (cl.success) {
+            bumpAdSpins(); setAdSpinsUsed(getAdSpinsUsed());
+            if (cl.spinsLeft !== undefined) onReward({ spinsLeft: cl.spinsLeft });
+            toast({ title: "🎡 تم!", description: "حصلت على دورة مجانية!" });
+          }
+        } catch(e: any) {
+          setAdLoading(false);
+          if (e?.type === 'no_ad') toast({ title: "لا يوجد إعلان", description: "لا توجد إعلانات الآن، حاول لاحقاً", variant: "destructive" });
+          else if (e?.type !== 'skip') toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
+        }
+      }
 
   async function handleSpin() {
     if (isSpinning || user.spinsLeft <= 0) return;
@@ -292,7 +299,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
 
               {adSpinsLeft > 0 ? (
                 <button
-                  onClick={() => setShowAd(true)}
+                  onClick={handleWatchSpinAd} disabled={adLoading}
                   className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
                   style={{
                     background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
