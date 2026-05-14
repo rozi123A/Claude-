@@ -36,7 +36,7 @@ import { useState, useEffect, useCallback } from "react";
     minWithdraw: 10000,
     starsRate: 1000,
     adCooldown: 30,
-    adsgramBlockId: "29281",
+    adsgramBlockId: "",
     lastAdTime: null,
   };
 
