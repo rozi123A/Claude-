@@ -24,14 +24,6 @@ function fmt(ms: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-
-function showMonetagAd() {
-  try {
-    const s = document.createElement('script');
-    s.src = 'https://3nbf4.com/400/10996226';
-    (document.body || document.documentElement).appendChild(s);
-  } catch(e) {}
-}
 export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: DailyGiftBoxProps) {
   const [nextClaim, setNextClaim] = useState<number>(() => {
     try { return parseInt(localStorage.getItem(LS_KEY(telegramId)) || "0"); } catch { return 0; }
@@ -108,7 +100,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
         setTimeLeft(getTimeLeft(next));
         try { localStorage.setItem(LS_KEY(telegramId), String(next)); } catch {}
         onClaim({ balance: Number(result.balance ?? 0), totalEarned: Number(result.totalEarned ?? 0) });
-        showMonetagAd();
         setTimeout(() => setShowReward(false), 2500);
       } else {
         if (result.nextClaim) {
