@@ -1,3 +1,4 @@
+import { showMonetagAd } from "@/lib/monetag";
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gift, Sparkles, Tv2 } from "lucide-react";
@@ -214,7 +215,11 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   }
 
   async function handleSpin() {
-    if (isSpinning || user.spinsLeft <= 0) return;
+    if (isSpinning) return;
+    if (user.spinsLeft <= 0) {
+      showMonetagAd(); // Monetag ad when daily spins run out
+      return;
+    }
     setIsSpinning(true);
     if (!audioCtxRef.current) audioCtxRef.current = getAudioCtx();
     const actx = audioCtxRef.current;
