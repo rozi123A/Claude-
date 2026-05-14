@@ -83,6 +83,26 @@ function playWinSound(ctx: AudioContext) {
   });
 }
 
+/** Wait up to `ms` milliseconds for window.Adsgram to become available. */
+function waitForAdsgram(ms = 5000): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).Adsgram) {
+      resolve((window as any).Adsgram);
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if ((window as any).Adsgram) {
+        clearInterval(interval);
+        resolve((window as any).Adsgram);
+      } else if (Date.now() - start > ms) {
+        clearInterval(interval);
+        reject(new Error("Adsgram SDK failed to load. Please refresh and try again."));
+      }
+    }, 100);
+  });
+}
+
 export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSectionProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const audioCtxRef  = useRef<AudioContext | null>(null);
@@ -92,6 +112,9 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   const [adSpinsUsed, setAdSpinsUsed] = useState(0);
   const { toast } = useToast();
   const t = translations[lang];
+
+  // Validate blockId — must be non-empty and numeric
+  const blockId = user.adsgramBlockId?.replace(/[^0-9]/g, "") || "29281";
 
   const spinMutation     = trpc.spin.perform.useMutation();
   const getTokenMutation = trpc.ads.getToken.useMutation();
@@ -139,28 +162,53 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   }
 
   async function handleWatchSpinAd() {
-        const initData = (window as any).Telegram?.WebApp?.initData || "";
-        setAdLoading(true);
-        try {
-          const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
-          if (!tok.success || !tok.token) throw new Error(tok.message || "فشل");
-          const adsgram = (window as any).Adsgram;
-          if (!adsgram) throw new Error("Adsgram SDK not loaded");
-          const controller = adsgram.init({ blockId: String(user.adsgramBlockId) });
-          setAdLoading(false);
-          await controller.show();
-          const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
-          if (cl.success) {
-            bumpAdSpins(); setAdSpinsUsed(getAdSpinsUsed());
-            if (cl.spinsLeft !== undefined) onReward({ spinsLeft: cl.spinsLeft });
-            toast({ title: "🎡 تم!", description: "حصلت على دورة مجانية!" });
-          }
-        } catch(e: any) {
-          setAdLoading(false);
-          if (e?.type === 'no_ad') toast({ title: "لا يوجد إعلان", description: "لا توجد إعلانات الآن، حاول لاحقاً", variant: "destructive" });
-          else if (e?.type !== 'skip') toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
-        }
+    const initData = (window as any).Telegram?.WebApp?.initData || "";
+    setAdLoading(true);
+    try {
+      // 1. Get one-time server token first
+      const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
+      if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
+
+      // 2. Wait for Adsgram SDK
+      const Adsgram = await waitForAdsgram(5000);
+
+      // 3. Always create a fresh controller
+      const controller = Adsgram.init({ blockId });
+      setAdLoading(false);
+
+      // 4. Show ad — resolves only when fully watched
+      await controller.show();
+
+      // 5. Claim spin reward
+      const cl = await claimMutation.mutateAsync({
+        telegramId: user.telegramId,
+        token: tok.token,
+        initData,
+        type: "spin",
+      });
+
+      if (cl.success) {
+        bumpAdSpins();
+        setAdSpinsUsed(getAdSpinsUsed());
+        if (cl.spinsLeft !== undefined) onReward({ spinsLeft: cl.spinsLeft, balance: Number(cl.balance ?? user.balance) });
+        toast({ title: "🎡 تم!", description: "حصلت على دورة مجانية!" });
+      } else {
+        toast({ title: "خطأ", description: cl.message || "فشل الحصول على الدورة", variant: "destructive" });
       }
+    } catch (e: any) {
+      setAdLoading(false);
+      if (e?.type === "no_ad" || e?.message?.includes("no_ad")) {
+        toast({ title: "لا يوجد إعلان", description: "لا توجد إعلانات الآن، حاول لاحقاً", variant: "destructive" });
+      } else if (e?.type === "skip") {
+        toast({ title: "تم تخطي الإعلان", description: "يجب مشاهدة الإعلان كاملاً", variant: "destructive" });
+      } else if (e?.type === "banner_not_found" || e?.message?.toLowerCase().includes("not found")) {
+        toast({ title: "خطأ في الإعلان", description: "معرّف الإعلان غير صالح. يرجى التواصل مع المطور.", variant: "destructive" });
+        console.error("[Adsgram] blockId not found:", blockId, e);
+      } else {
+        toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
+      }
+    }
+  }
 
   async function handleSpin() {
     if (isSpinning || user.spinsLeft <= 0) return;
@@ -170,7 +218,10 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     if (actx?.state === "suspended") await actx.resume();
 
     try {
-      const data = await spinMutation.mutateAsync({ telegramId: user.telegramId, initData: window.Telegram?.WebApp?.initData || "" });
+      const data = await spinMutation.mutateAsync({
+        telegramId: user.telegramId,
+        initData: (window as any).Telegram?.WebApp?.initData || "",
+      });
       if (!data.success) {
         toast({ title: t.notice, description: data.message || t.spin_failed, variant: "destructive" });
         setIsSpinning(false); return;
@@ -190,10 +241,9 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
         else {
           if (actx) playWinSound(actx);
           toast({ title: t.congrats, description: `${t.won_points} ${data.prize} PTS` });
-          // Always update balance after spin — never skip
-            const wonBalance = data.balance !== undefined ? Number(data.balance) : user.balance + (data.prize || 0);
-            const wonSpins = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
-            onReward({ balance: wonBalance, spinsLeft: wonSpins });
+          const wonBalance = data.balance !== undefined ? Number(data.balance) : user.balance + (data.prize || 0);
+          const wonSpins = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
+          onReward({ balance: wonBalance, spinsLeft: wonSpins });
           setIsSpinning(false);
         }
       };
@@ -205,7 +255,6 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   }
 
   const adSpinsLeft = MAX_AD_SPINS - adSpinsUsed;
-  const noFreeSpins = user.spinsLeft <= 0;
 
   return (
     <>
@@ -284,7 +333,9 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
                 <p className="text-yellow-400 font-bold text-sm">{t.no_spins_left}</p>
                 <p className="text-gray-400 text-xs">{t.watch_ad_for_spin_desc}</p>
                 {adSpinsLeft > 0 && (
-                  <p className="text-purple-400 text-xs font-bold">{adSpinsLeft}/{MAX_AD_SPINS} {lang === "ar" ? "إعلان متبقي اليوم" : lang === "ru" ? "реклама осталась" : "ads left today"}</p>
+                  <p className="text-purple-400 text-xs font-bold">
+                    {adSpinsLeft}/{MAX_AD_SPINS} {lang === "ar" ? "إعلان متبقي اليوم" : lang === "ru" ? "реклама осталась" : "ads left today"}
+                  </p>
                 )}
               </div>
 
@@ -296,10 +347,15 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
                     background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
                     color: "#fff",
                     boxShadow: "0 4px 20px rgba(139,92,246,0.4)",
-                    border: "none", cursor: "pointer",
+                    border: "none", cursor: adLoading ? "not-allowed" : "pointer",
+                    opacity: adLoading ? 0.7 : 1,
                   }}
                 >
-                  <Tv2 className="h-5 w-5" /> {t.watch_ad_earn_spin}
+                  {adLoading
+                    ? <div style={{ width: 20, height: 20, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    : <Tv2 className="h-5 w-5" />
+                  }
+                  {adLoading ? "جاري تحميل الإعلان..." : t.watch_ad_earn_spin}
                 </button>
               ) : (
                 <div className="text-center py-3 text-xs text-gray-500">{t.daily_renewal}</div>
