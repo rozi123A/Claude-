@@ -51,8 +51,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [nextClaim]);
-    setAdWatched(true);
-    }
 
   const handleBoxClick = async () => {
     if (!canClaim || isOpening) return;
