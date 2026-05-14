@@ -208,14 +208,6 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
 
   return (
     <>
-      {showAd && (
-        <AdOverlay
-          seconds={15}
-          rewardLabel="🎡 دورة إضافية"
-          onClaim={handleClaimSpinAd}
-        />
-      )}
-
       <Card className="bg-gradient-to-b from-slate-900/80 to-slate-950 border-slate-700/50 shadow-xl overflow-hidden">
         <CardHeader className="border-b border-slate-800/50 bg-slate-900/30">
           <CardTitle className="flex items-center justify-between">
