@@ -37,11 +37,13 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
   const [adWatched,  setAdWatched]  = useState<boolean>(() => {
     try { return localStorage.getItem(LS_AD_KEY(telegramId)) === new Date().toISOString().split("T")[0]; } catch { return false; }
   });
-  const [showAdGate, setShowAdGate] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast }   = useToast();
   const t           = translations[lang];
+  const getTokenMutation = trpc.ads.getToken.useMutation();
+  const adClaimMutation = trpc.ads.claim.useMutation();
   const claimMutation = trpc.dailyGift.claim.useMutation();
 
   const canClaim = timeLeft === 0;
@@ -61,12 +63,26 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
   function markAdWatched() {
     try { localStorage.setItem(LS_AD_KEY(telegramId), new Date().toISOString().split("T")[0]); } catch {}
     setAdWatched(true);
-    setShowAdGate(false);
-  }
+    }
 
   const handleBoxClick = () => {
     if (!canClaim || isOpening) return;
-    if (!adWatched) { setShowAdGate(true); return; }
+    if (!adWatched) {
+        setAdLoading(true);
+        try {
+          const tidNum = typeof telegramId === 'string' ? parseInt(telegramId) : telegramId;
+          const tok = await getTokenMutation.mutateAsync({ telegramId: tidNum, initData });
+          const adsgram = (window as any).Adsgram;
+          if (adsgram && tok.success && tok.token) {
+            const controller = adsgram.init({ blockId: "29281" });
+            setAdLoading(false);
+            await controller.show();
+          }
+        } catch {}
+        setAdLoading(false);
+        markAdWatched();
+        return;
+      }
     handleClaim();
   };
 
@@ -104,14 +120,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
 
   return (
     <>
-      {showAdGate && (
-        <AdOverlay
-          seconds={15}
-          rewardLabel="🎁 استلم هديتك"
-          onClaim={async () => { markAdWatched(); await handleClaim(); }}
-          onClose={() => setShowAdGate(false)}
-        />
-      )}
 
       <div className="flex flex-col items-center gap-3">
         {/* 3D Gift Box */}
@@ -196,7 +204,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
           {canClaim ? (
             <div className="flex flex-col items-center gap-1">
               <p className="text-xs font-black text-yellow-400" style={{ animation: "giftPulse 1.5s ease-in-out infinite" }}>
-                {adWatched ? t.daily_gift_ready : "📺 شاهد إعلاناً لاستلام هديتك"}
+                {adLoading ? "⏳ جاري تحميل الإعلان..." : adWatched ? t.daily_gift_ready : "📺 شاهد إعلاناً لاستلام هديتك"}
               </p>
               {!adWatched && (
                 <p className="text-[10px] text-gray-500">اضغط على الصندوق لمشاهدة الإعلان</p>
