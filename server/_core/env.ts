@@ -11,9 +11,8 @@ export const ENV = {
   adsgramBlockId: (() => {
     const raw = process.env.ADSGRAM_BLOCK_ID ?? "";
     const cleaned = raw.replace(/[^0-9]/g, "");
-    // Must be a valid numeric ID of at least 4 digits; fall back to default
     if (cleaned.length >= 4) return cleaned;
-    return "29281";
+    return "";
   })(),
   adminTelegramId: process.env.ADMIN_TELEGRAM_ID ? Number(process.env.ADMIN_TELEGRAM_ID) : null,
 };
