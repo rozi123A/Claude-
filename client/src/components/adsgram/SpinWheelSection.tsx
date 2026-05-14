@@ -115,7 +115,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   const t = translations[lang];
 
   // Validate blockId — must be non-empty and numeric
-  const blockId = user.adsgramBlockId?.replace(/[^0-9]/g, "") || "29281";
+  const blockId = user.adsgramBlockId?.replace(/[^0-9]/g, "") || ""
 
   const spinMutation     = trpc.spin.perform.useMutation();
   const getTokenMutation = trpc.ads.getToken.useMutation();
