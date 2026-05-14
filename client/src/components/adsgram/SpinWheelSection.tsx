@@ -190,7 +190,10 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
       if (cl.success) {
         bumpAdSpins();
         setAdSpinsUsed(getAdSpinsUsed());
-        if (cl.spinsLeft !== undefined) onReward({ spinsLeft: cl.spinsLeft, balance: Number(cl.balance ?? user.balance) });
+        // Always update balance and spins — never skip even if server returns undefined
+        const newBalSpin = cl.balance !== undefined ? Number(cl.balance) : user.balance + 100;
+        const newSpinCount = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
+        onReward({ balance: newBalSpin, spinsLeft: newSpinCount });
         toast({ title: "🎡 تم!", description: "حصلت على دورة مجانية!" });
       } else {
         toast({ title: "خطأ", description: cl.message || "فشل الحصول على الدورة", variant: "destructive" });
