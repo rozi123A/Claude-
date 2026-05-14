@@ -179,7 +179,7 @@ import { useState, useEffect, useRef } from "react";
           <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "12px 16px" }}>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.7, textAlign: "center" }}>
               📺 شاهد الإعلان كاملاً للحصول على النقاط<br/>
-              ⏱️ كل إعلان مرة كل {Math.floor(user.adCooldown / 60)} دقيقة<br/>
+              ⏱️ كل إعلان مرة كل {user.adCooldown} ثانية<br/>
               🎯 حد يومي 50 إعلان
             </p>
           </div>
