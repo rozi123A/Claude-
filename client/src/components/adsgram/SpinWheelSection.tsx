@@ -4,7 +4,6 @@ import { Gift, Sparkles, Tv2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 import { translations, type Language } from "@/lib/i18n";
-import AdOverlay from "./AdOverlay";
 
 interface UserData {
   telegramId: number;
@@ -214,7 +213,6 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
           seconds={15}
           rewardLabel="🎡 دورة إضافية"
           onClaim={handleClaimSpinAd}
-          onClose={() => setShowAd(false)}
         />
       )}
 
