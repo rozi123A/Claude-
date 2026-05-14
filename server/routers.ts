@@ -3,7 +3,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals, getReferralStats, getAdminStats, getAllTelegramUsersAdmin, getAllUsersForBroadcast, getInactiveUsers, banTelegramUser, getAllWithdrawals } from "./db";
+import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals, getReferralStats, getAdminStats, getAllTelegramUsersAdmin, getAllUsersForBroadcast, getInactiveUsers, banTelegramUser, getAllWithdrawals,
+  getLeaderboard } from "./db";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
@@ -629,4 +630,16 @@ export const appRouter = router({
         }),
     }),
   
-});
+    leaderboard: router({
+      get: publicProcedure
+        .input(z.object({ telegramId: z.number().optional() }))
+        .query(async ({ input }) => {
+          const rows = await getLeaderboard(20);
+          const myRank = input.telegramId
+            ? rows.findIndex(r => r.telegramId === input.telegramId) + 1
+            : 0;
+          return { success: true, rows, myRank };
+        }),
+    }),
+
+  });
