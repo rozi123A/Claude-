@@ -50,7 +50,7 @@ import { useState, useEffect, useRef } from "react";
         const adsgram = (window as any).Adsgram;
         if (adsgram && user.adsgramBlockId) {
           try {
-            adControllerRef.current = adsgram.init({ blockId: String(user.adsgramBlockId).replace(/\D/g, "") });
+            adControllerRef.current = adsgram.init({ blockId: String(user.adsgramBlockId) });
           } catch {}
         }
       }, [user.adsgramBlockId]);
@@ -80,7 +80,7 @@ import { useState, useEffect, useRef } from "react";
           const adsgram = (window as any).Adsgram;
           if (!adsgram) throw new Error("Adsgram SDK not loaded");
 
-          const controller = adControllerRef.current || adsgram.init({ blockId: String(user.adsgramBlockId).replace(/\D/g, "") });
+          const controller = adControllerRef.current || adsgram.init({ blockId: String(user.adsgramBlockId) });
           adControllerRef.current = controller;
 
           setLoading(false);
@@ -101,7 +101,7 @@ import { useState, useEffect, useRef } from "react";
             onReward({ balance: claimData.balance, todayAds: claimData.todayAds, lastAdTime: Date.now() });
             setCooldownRemaining(user.adCooldown);
             // Refresh controller for next ad
-            adControllerRef.current = adsgram.init({ blockId: String(user.adsgramBlockId).replace(/\D/g, "") });
+            adControllerRef.current = adsgram.init({ blockId: String(user.adsgramBlockId) });
           } else {
             toast({ title: t.error || "خطأ", description: claimData.message || t.ad_error_desc, variant: "destructive" });
           }
