@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
 import { translations, type Language } from "@/lib/i18n";
-import AdOverlay from "./AdOverlay";
 
 interface DailyGiftBoxProps {
   telegramId: number;
