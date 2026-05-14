@@ -64,7 +64,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
     setAdWatched(true);
     }
 
-  const handleBoxClick = () => {
+  const handleBoxClick = async () => {
     if (!canClaim || isOpening) return;
     if (!adWatched) {
         setAdLoading(true);
