@@ -1,6 +1,6 @@
 import { Telegraf, Markup } from "telegraf";
 import type { Express } from "express";
-import { getTelegramUser, upsertTelegramUser } from "./db";
+import { getTelegramUser, upsertTelegramUser, getInactiveUsers } from "./db";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || process.env.FRONTEND_URL;
