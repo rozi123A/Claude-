@@ -13,7 +13,9 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
   const [timeLeft, setTimeLeft] = useState(seconds);
   const [claimed, setClaimed] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [watchedInTg, setWatchedInTg] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const visibilityRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -22,7 +24,10 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
         return prev - 1;
       });
     }, 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current!); };
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current!);
+      if (visibilityRef.current) document.removeEventListener("visibilitychange", visibilityRef.current);
+    };
   }, []);
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
@@ -34,6 +39,30 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
     setClaimed(true);
     onClaim();
     setTimeout(() => onClose(), 400);
+  };
+
+  // Open ad in Telegram In-App Browser
+  const handleWatchInTelegram = () => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.openLink) {
+      tg.openLink(MONETAG_DIRECT_LINK, { try_instant_view: false });
+    } else {
+      window.open(MONETAG_DIRECT_LINK, "_blank");
+    }
+    setWatchedInTg(true);
+
+    // When user returns to app, mark as viewed
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        document.removeEventListener("visibilitychange", onVisible);
+        visibilityRef.current = null;
+        // Fast-forward countdown to 0 since user watched
+        setTimeLeft(0);
+        if (timerRef.current) clearInterval(timerRef.current!);
+      }
+    };
+    visibilityRef.current = onVisible;
+    document.addEventListener("visibilitychange", onVisible);
   };
 
   return (
@@ -62,7 +91,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
         boxShadow: "0 2px 16px rgba(0,0,0,0.4)",
         zIndex: 1,
       }}>
-        {mm}:{ss}
+        {timeLeft === 0 ? "✅ اكتمل" : `${mm}:${ss}`}
       </div>
 
       {/* Card */}
@@ -102,14 +131,13 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
         {/* Ad iframe area */}
         <div style={{
           margin: "0 14px",
-          height: 200,
+          height: 180,
           borderRadius: 12,
           background: "#141827",
           border: "1px solid rgba(255,255,255,0.07)",
           overflow: "hidden",
           position: "relative",
         }}>
-          {/* Loading spinner shown until iframe loads */}
           {!iframeLoaded && (
             <div style={{
               position: "absolute", inset: 0,
@@ -123,6 +151,16 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
                 animation: "adSpin 1s linear infinite",
               }} />
               <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: 0 }}>جاري تحميل الإعلان...</p>
+            </div>
+          )}
+          {watchedInTg && timeLeft === 0 && (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 3,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              background: "rgba(20,24,39,0.95)", gap: 8,
+            }}>
+              <div style={{ fontSize: 44 }}>✅</div>
+              <p style={{ color: "#4ade80", fontWeight: 700, fontSize: 14, margin: 0 }}>شاهدت الإعلان بنجاح!</p>
             </div>
           )}
           <iframe
@@ -140,11 +178,32 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "10px 14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ padding: "10px 14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.25)", margin: 0 }}>
             ads by Monetag
           </p>
 
+          {/* Watch in Telegram button */}
+          {!watchedInTg && (
+            <button
+              onClick={handleWatchInTelegram}
+              style={{
+                width: "100%", height: 46, borderRadius: 12, border: "none",
+                background: "linear-gradient(135deg,#0088cc,#006aaa)",
+                color: "#fff",
+                fontWeight: 700, fontSize: 14,
+                cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                boxShadow: "0 3px 16px rgba(0,136,204,0.4)",
+                transition: "all 0.2s",
+              }}
+            >
+              <span style={{ fontSize: 18 }}>✈️</span>
+              شاهد الإعلان في Telegram
+            </button>
+          )}
+
+          {/* Claim button */}
           <button
             onClick={handleClaim}
             disabled={!canClaim}
@@ -162,19 +221,17 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
             }}
           >
             {canClaim ? (
-              <>
-                <span style={{ fontSize: 16 }}>✓</span>
-                انقر للحصول على المكافأة! {rewardLabel && `(${rewardLabel})`}
-              </>
+              <>✓ انقر للحصول على المكافأة! {rewardLabel && `(${rewardLabel})`}</>
             ) : (
               <>⏳ انتظر {mm}:{ss}</>
             )}
           </button>
 
+          {/* Continue button */}
           <button
             onClick={onClose}
             style={{
-              width: "100%", height: 50, borderRadius: 12, border: "none",
+              width: "100%", height: 46, borderRadius: 12, border: "none",
               background: "linear-gradient(135deg,#1e40af,#1d4ed8)",
               color: "#fff",
               fontWeight: 700, fontSize: 15,
