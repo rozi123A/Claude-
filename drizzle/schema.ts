@@ -1,8 +1,4 @@
-import { bigint, boolean, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
-
-export const roleEnum = pgEnum("role", ["user", "admin"]);
-export const transactionTypeEnum = pgEnum("transaction_type", ["ad", "spin", "withdraw", "task", "bonus", "referral"]);
-export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "approved", "rejected", "completed"]);
+import { bigint, boolean, integer, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -10,7 +6,7 @@ export const users = pgTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: roleEnum("role").default("user").notNull(),
+  role: text("role").default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -47,7 +43,7 @@ export type InsertTelegramUser = typeof telegramUsers.$inferInsert;
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
-  type: transactionTypeEnum("type").notNull(),
+  type: text("type").notNull(),
   points: bigint("points", { mode: "number" }).notNull(),
   metadata: text("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -62,7 +58,7 @@ export const withdrawals = pgTable("withdrawals", {
   amount: bigint("amount", { mode: "number" }).notNull(),
   stars: integer("stars").notNull(),
   method: varchar("method", { length: 50 }).default("telegram_stars"),
-  status: withdrawalStatusEnum("status").default("pending").notNull(),
+  status: text("status").default("pending").notNull(),
   processedAt: timestamp("processed_at"),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
