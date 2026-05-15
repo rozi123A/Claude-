@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
   import {
     Users, TrendingUp, Wallet, Send, Shield, BarChart3,
     Eye, EyeOff, RefreshCw, Ban, CheckCircle,
-    Megaphone, LogOut
+    Megaphone, LogOut, MessageCircle, XCircle
   } from "lucide-react";
 
   const fmtN = (n: number) => n?.toLocaleString() ?? "0";
@@ -87,10 +87,12 @@ import { useState, useEffect } from "react";
     const [broadcastTarget, setBroadcastTarget] = useState<"all" | "inactive">("all");
     const [broadcastLoading, setBroadcastLoading] = useState(false);
     const [withdrawFilter, setWithdrawFilter] = useState("pending");
+    const [withdrawActionLoading, setWithdrawActionLoading] = useState<number | null>(null);
     const { toast } = useToast();
 
     const verifyMut = trpc.admin.verify.useMutation();
       const broadcastMut = trpc.admin.broadcast.useMutation();
+      const updateWithdrawMut = trpc.admin.adminUpdate.useMutation();
 
       // Auto-auth when opened from Telegram as admin
       useEffect(() => {
@@ -170,6 +172,32 @@ import { useState, useEffect } from "react";
         usersQ.refetch();
       } catch {
         toast({ title: "خطأ", variant: "destructive" });
+      }
+    };
+
+    const handleWithdrawAction = async (withdrawalId: number, status: "approved" | "rejected", note?: string) => {
+      setWithdrawActionLoading(withdrawalId);
+      try {
+        const res = await updateWithdrawMut.mutateAsync({ secret, withdrawalId, status, note });
+        if (res.success) {
+          toast({ title: status === "approved" ? "✅ تمت الموافقة" : "❌ تم الرفض", description: "تم تحديث حالة الطلب" });
+          withdrawQ.refetch();
+        } else {
+          toast({ title: "خطأ", description: (res as any).message || "فشل التحديث", variant: "destructive" });
+        }
+      } catch {
+        toast({ title: "خطأ", description: "تعذر الاتصال بالخادم", variant: "destructive" });
+      } finally {
+        setWithdrawActionLoading(null);
+      }
+    };
+
+    const openTelegramChat = (telegramId: number) => {
+      const tg = (window as any)?.Telegram?.WebApp;
+      if (tg) {
+        tg.openTelegramLink(`https://t.me/@id${telegramId}`);
+      } else {
+        window.open(`tg://user?id=${telegramId}`, "_blank");
       }
     };
 
@@ -477,23 +505,61 @@ import { useState, useEffect } from "react";
                     <p style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 24, fontSize: 13 }}>لا توجد طلبات</p>
                   ) : withdrawQ.data.withdrawals.map((w: any) => (
                     <div key={w.id} style={{ padding: "14px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                         <div>
-                          <p style={{ fontSize: 13, fontWeight: 800, color: "#E2E8F0", marginBottom: 4 }}>🆔 {w.telegramId}</p>
-                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{fmtDate(w.createdAt)}</p>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: "#E2E8F0", marginBottom: 2 }}>
+                            {w.firstName ? `${w.firstName}${w.lastName ? " " + w.lastName : ""}` : `🆔 ${w.telegramId}`}
+                          </p>
+                          {w.username && <p style={{ fontSize: 11, color: "#60A5FA", marginBottom: 2 }}>@{w.username}</p>}
+                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{fmtDate(w.createdAt)}</p>
                         </div>
                         <div style={{ textAlign: "right" }}>
                           <p style={{ fontSize: 16, fontWeight: 900, color: "#FFD700" }}>⭐ {fmtN(Number(w.stars))}</p>
                           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{fmtN(Number(w.amount))} نقطة</p>
                         </div>
                       </div>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8,
-                        background: w.status === "pending" ? "rgba(245,158,11,0.15)" : w.status === "approved" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
-                        color: w.status === "pending" ? "#FCD34D" : w.status === "approved" ? "#34D399" : "#FCA5A5"
-                      }}>
-                        {w.status === "pending" ? "⏳ معلق" : w.status === "approved" ? "✅ موافق" : "❌ مرفوض"}
-                      </span>
-                      {w.note && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginRight: 8 }}>{w.note}</span>}
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8,
+                          background: w.status === "pending" ? "rgba(245,158,11,0.15)" : w.status === "approved" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
+                          color: w.status === "pending" ? "#FCD34D" : w.status === "approved" ? "#34D399" : "#FCA5A5"
+                        }}>
+                          {w.status === "pending" ? "⏳ معلق" : w.status === "approved" ? "✅ موافق" : "❌ مرفوض"}
+                        </span>
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>ID: {w.telegramId}</span>
+                        {w.note && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>• {w.note}</span>}
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => openTelegramChat(w.telegramId)}
+                          style={{ flex: 1, height: 36, borderRadius: 10, border: "1px solid rgba(96,165,250,0.3)", background: "rgba(96,165,250,0.1)", color: "#60A5FA", fontWeight: 700, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                        >
+                          <MessageCircle size={13} /> راسله
+                        </button>
+
+                        {w.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => handleWithdrawAction(w.id, "approved")}
+                              disabled={withdrawActionLoading === w.id}
+                              style={{ flex: 1, height: 36, borderRadius: 10, border: "none", background: "rgba(16,185,129,0.2)", color: "#34D399", fontWeight: 800, fontSize: 11, cursor: withdrawActionLoading === w.id ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                            >
+                              {withdrawActionLoading === w.id
+                                ? <div style={{ width: 14, height: 14, border: "2px solid rgba(52,211,153,0.3)", borderTopColor: "#34D399", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                                : <CheckCircle size={13} />}
+                              موافقة
+                            </button>
+                            <button
+                              onClick={() => handleWithdrawAction(w.id, "rejected", "رفض من الأدمن")}
+                              disabled={withdrawActionLoading === w.id}
+                              style={{ flex: 1, height: 36, borderRadius: 10, border: "none", background: "rgba(239,68,68,0.15)", color: "#FCA5A5", fontWeight: 800, fontSize: 11, cursor: withdrawActionLoading === w.id ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                            >
+                              <XCircle size={13} /> رفض
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
