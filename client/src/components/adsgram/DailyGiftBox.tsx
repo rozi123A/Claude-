@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
   import { trpc } from "@/lib/trpc";
   import { useToast } from "@/hooks/use-toast";
   import { translations, type Language } from "@/lib/i18n";
-  import AdOverlay from "./AdOverlay";
 
   interface DailyGiftBoxProps {
     telegramId: number;
@@ -24,7 +23,7 @@ import { useState, useEffect, useRef } from "react";
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
-  export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: DailyGiftBoxProps) {
+  export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockId, onClaim }: DailyGiftBoxProps) {
     const [nextClaim, setNextClaim] = useState<number>(() => {
       try { return parseInt(localStorage.getItem(LS_KEY(telegramId)) || "0"); } catch { return 0; }
     });
@@ -33,7 +32,6 @@ import { useState, useEffect, useRef } from "react";
     const [reward,        setReward]        = useState(0);
     const [showReward,    setShowReward]    = useState(false);
     const [isHovered,     setIsHovered]     = useState(false);
-    const [showAdOverlay, setShowAdOverlay] = useState(false);
 
     const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
     const { toast }     = useToast();
@@ -103,16 +101,7 @@ import { useState, useEffect, useRef } from "react";
 
     return (
       <>
-        {showAdOverlay && (
-          <AdOverlay
-            seconds={15}
-            rewardLabel={t.daily_gift_title + " 🎁"}
-            onClaim={handleAdClaim}
-            onClose={handleAdClose}
-          />
-        )}
-
-        <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-3">
           {/* 3D Gift Box */}
           <div
             onClick={handleBoxClick}
