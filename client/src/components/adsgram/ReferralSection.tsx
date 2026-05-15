@@ -11,7 +11,7 @@ import { useState } from "react";
     const [copied, setCopied] = useState(false);
     const { toast } = useToast();
     const t = translations[lang];
-    const referralLink = `https://t.me/ads_reward123_bot?start=${user.telegramId}`;
+    const referralLink = `https://t.me/ads_reward123_bot?startapp=${user.telegramId}`;
     const { data: stats } = trpc.telegram.getReferralStats.useQuery({ telegramId: user.telegramId }, { refetchInterval: 30000 });
 
     const handleCopy = () => {
