@@ -79,7 +79,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
   const handleClaim = async () => {
     if (!canClaim || claiming) return;
     setClaiming(true);
-    try { await onClaim(); } finally { setClaiming(false); }
+    try { await onClaim(); onClose(); } catch { } finally { setClaiming(false); }
   };
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
