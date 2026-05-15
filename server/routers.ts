@@ -224,7 +224,7 @@ export const appRouter = router({
         if (!user) return { success: false, message: "User not found" };
 
         // ── Anti-bot checks ──
-        if (user.isBanned === "true") return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
+        if (user.isBanned === true) return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
         if (user.todayAds >= 50) return { success: false, message: "Daily limit reached" };
         if (!checkRateLimit(input.telegramId)) {
           return { success: false, message: "طلبات كثيرة جداً — انتظر دقيقة" };
@@ -247,7 +247,7 @@ export const appRouter = router({
         if (!verified || verified.id !== input.telegramId) return { success: false, message: "Invalid data" };
 
         const adToken = await getAdToken(input.token);
-        if (!adToken || Number(adToken.telegramId) !== Number(input.telegramId) || adToken.used === "true") {
+        if (!adToken || Number(adToken.telegramId) !== Number(input.telegramId) || adToken.used === true) {
           return { success: false, message: "Invalid token" };
         }
 
@@ -279,7 +279,7 @@ export const appRouter = router({
         await markAdTokenUsed(input.token);
         let user = await getTelegramUser(input.telegramId);
         if (!user) return { success: false, message: "User not found" };
-        if (user.isBanned === "true") return { success: false, message: "تم تعليق حسابك" };
+        if (user.isBanned === true) return { success: false, message: "تم تعليق حسابك" };
 
         const reward = 10;
         const currentBalance = Number(user.balance) || 0;
