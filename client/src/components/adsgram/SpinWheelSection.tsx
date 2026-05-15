@@ -1,10 +1,10 @@
-import { showMonetagAd } from "@/lib/monetag";
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gift, Sparkles, Tv2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 import { translations, type Language } from "@/lib/i18n";
+import AdOverlay from "./AdOverlay";
 
 interface UserData {
   telegramId: number;
@@ -75,32 +75,12 @@ function playWinSound(ctx: AudioContext) {
   [261.63, 329.63, 392.0, 523.25].forEach((freq, i) => {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.connect(g); g.connect(ctx.destination); o.type = "sine";
-    const t = now + i * 0.13;
-    o.frequency.setValueAtTime(freq, t);
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.3, t + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-    o.start(t); o.stop(t + 0.4);
-  });
-}
-
-/** Wait up to `ms` milliseconds for window.Adsgram to become available. */
-function waitForAdsgram(ms = 5000): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).Adsgram) {
-      resolve((window as any).Adsgram);
-      return;
-    }
-    const start = Date.now();
-    const interval = setInterval(() => {
-      if ((window as any).Adsgram) {
-        clearInterval(interval);
-        resolve((window as any).Adsgram);
-      } else if (Date.now() - start > ms) {
-        clearInterval(interval);
-        reject(new Error("Adsgram SDK failed to load. Please refresh and try again."));
-      }
-    }, 100);
+    const tt = now + i * 0.13;
+    o.frequency.setValueAtTime(freq, tt);
+    g.gain.setValueAtTime(0, tt);
+    g.gain.linearRampToValueAtTime(0.3, tt + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, tt + 0.35);
+    o.start(tt); o.stop(tt + 0.4);
   });
 }
 
@@ -109,13 +89,12 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
   const audioCtxRef  = useRef<AudioContext | null>(null);
   const [isSpinning,  setIsSpinning]  = useState(false);
   const [rotation,    setRotation]    = useState(0);
-  const [adLoading, setAdLoading] = useState(false);
+  const [adLoading,   setAdLoading]   = useState(false);
   const [adSpinsUsed, setAdSpinsUsed] = useState(0);
+  const [showAdOverlay, setShowAdOverlay] = useState(false);
+  const [pendingToken,  setPendingToken]  = useState<string | null>(null);
   const { toast } = useToast();
   const t = translations[lang];
-
-  // Validate blockId — must be non-empty and numeric
-  const blockId = user.adsgramBlockId?.replace(/[^0-9]/g, "") || ""
 
   const spinMutation     = trpc.spin.perform.useMutation();
   const getTokenMutation = trpc.ads.getToken.useMutation();
@@ -166,60 +145,45 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     const initData = (window as any).Telegram?.WebApp?.initData || "";
     setAdLoading(true);
     try {
-      // 1. Get one-time server token first
       const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
       if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
-
-      // 2. Wait for Adsgram SDK
-      const Adsgram = await waitForAdsgram(5000);
-
-      // 3. Always create a fresh controller
-      const controller = Adsgram.init({ blockId });
-      setAdLoading(false);
-
-      // 4. Show ad — resolves only when fully watched
-      await controller.show();
-
-      // 5. Claim spin reward
-      const cl = await claimMutation.mutateAsync({
-        telegramId: user.telegramId,
-        token: tok.token,
-        initData,
-        type: "spin",
-      });
-
-      if (cl.success) {
-        bumpAdSpins();
-        setAdSpinsUsed(getAdSpinsUsed());
-        // Always update balance and spins — never skip even if server returns undefined
-        const newBalSpin = cl.balance !== undefined ? Number(cl.balance) : user.balance + 100;
-        const newSpinCount = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
-        onReward({ balance: newBalSpin, spinsLeft: newSpinCount });
-        toast({ title: "🎡 تم!", description: "حصلت على دورة مجانية!" });
-      } else {
-        toast({ title: "خطأ", description: cl.message || "فشل الحصول على الدورة", variant: "destructive" });
-      }
+      setPendingToken(tok.token);
+      setShowAdOverlay(true);
     } catch (e: any) {
+      toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
+    } finally {
       setAdLoading(false);
-      if (e?.type === "no_ad" || e?.message?.includes("no_ad")) {
-        toast({ title: "لا يوجد إعلان", description: "لا توجد إعلانات الآن، حاول لاحقاً", variant: "destructive" });
-      } else if (e?.type === "skip") {
-        toast({ title: "تم تخطي الإعلان", description: "يجب مشاهدة الإعلان كاملاً", variant: "destructive" });
-      } else if (e?.type === "banner_not_found" || e?.message?.toLowerCase().includes("not found")) {
-        toast({ title: "خطأ في الإعلان", description: "معرّف الإعلان غير صالح. يرجى التواصل مع المطور.", variant: "destructive" });
-        console.error("[Adsgram] blockId not found:", blockId, e);
-      } else {
-        toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
-      }
     }
   }
 
-  async function handleSpin() {
-    if (isSpinning) return;
-    if (user.spinsLeft <= 0) {
-      showMonetagAd(); // Monetag ad when daily spins run out
-      return;
+  async function handleAdClaim() {
+    if (!pendingToken) return;
+    const initData = (window as any).Telegram?.WebApp?.initData || "";
+    const cl = await claimMutation.mutateAsync({
+      telegramId: user.telegramId,
+      token: pendingToken,
+      initData,
+      type: "spin",
+    });
+    if (cl.success) {
+      bumpAdSpins();
+      setAdSpinsUsed(getAdSpinsUsed());
+      const newBal   = cl.balance   !== undefined ? Number(cl.balance)   : user.balance + 100;
+      const newSpins = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
+      onReward({ balance: newBal, spinsLeft: newSpins });
+      toast({ title: "🎡 تم!", description: "حصلت على دورة مجانية!" });
+    } else {
+      toast({ title: "خطأ", description: cl.message || "فشل الحصول على الدورة", variant: "destructive" });
     }
+  }
+
+  function handleAdClose() {
+    setShowAdOverlay(false);
+    setPendingToken(null);
+  }
+
+  async function handleSpin() {
+    if (isSpinning || user.spinsLeft <= 0) return;
     setIsSpinning(true);
     if (!audioCtxRef.current) audioCtxRef.current = getAudioCtx();
     const actx = audioCtxRef.current;
@@ -249,8 +213,8 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
         else {
           if (actx) playWinSound(actx);
           toast({ title: t.congrats, description: `${t.won_points} ${data.prize} PTS` });
-          const wonBalance = data.balance !== undefined ? Number(data.balance) : user.balance + (data.prize || 0);
-          const wonSpins = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
+          const wonBalance = data.balance   !== undefined ? Number(data.balance)   : user.balance + (data.prize || 0);
+          const wonSpins   = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
           onReward({ balance: wonBalance, spinsLeft: wonSpins });
           setIsSpinning(false);
         }
@@ -266,6 +230,15 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
 
   return (
     <>
+      {showAdOverlay && (
+        <AdOverlay
+          seconds={15}
+          rewardLabel="دورة مجانية 🎡"
+          onClaim={handleAdClaim}
+          onClose={handleAdClose}
+        />
+      )}
+
       <Card className="bg-gradient-to-b from-slate-900/80 to-slate-950 border-slate-700/50 shadow-xl overflow-hidden">
         <CardHeader className="border-b border-slate-800/50 bg-slate-900/30">
           <CardTitle className="flex items-center justify-between">
@@ -314,7 +287,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
             </div>
           </div>
 
-          {/* Spin button */}
+          {/* Spin / Watch Ad button */}
           {user.spinsLeft > 0 ? (
             <>
               <button
@@ -363,7 +336,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
                     ? <div style={{ width: 20, height: 20, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                     : <Tv2 className="h-5 w-5" />
                   }
-                  {adLoading ? "جاري تحميل الإعلان..." : t.watch_ad_earn_spin}
+                  {adLoading ? "جاري التحميل..." : t.watch_ad_earn_spin}
                 </button>
               ) : (
                 <div className="text-center py-3 text-xs text-gray-500">{t.daily_renewal}</div>
