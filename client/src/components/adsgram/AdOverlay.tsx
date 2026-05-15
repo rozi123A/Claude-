@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 
+const MONETAG_DIRECT_LINK = "https://omg10.com/4/11009678";
+
 interface AdOverlayProps {
   seconds?: number;
   rewardLabel?: string;
@@ -9,7 +11,8 @@ interface AdOverlayProps {
 
 export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأة", onClaim, onClose }: AdOverlayProps) {
   const [timeLeft, setTimeLeft] = useState(seconds);
-  const [claimed,  setClaimed]  = useState(false);
+  const [claimed, setClaimed] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -40,7 +43,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
       background: "#1a1f2e",
       overflow: "hidden",
     }}>
-      {/* Telegram cat-pattern background */}
+      {/* Background pattern */}
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none",
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.6' opacity='0.07'%3E%3Ccircle cx='20' cy='20' r='8'/%3E%3Cpath d='M16 17 Q20 12 24 17'/%3E%3Ccircle cx='18' cy='19' r='1.5' fill='%23fff' opacity='0.3'/%3E%3Ccircle cx='22' cy='19' r='1.5' fill='%23fff' opacity='0.3'/%3E%3Ccircle cx='60' cy='50' r='6'/%3E%3Cpath d='M57 48 Q60 44 63 48'/%3E%3Ccircle cx='58' cy='49' r='1.2' fill='%23fff' opacity='0.3'/%3E%3Ccircle cx='62' cy='49' r='1.2' fill='%23fff' opacity='0.3'/%3E%3Crect x='35' y='8' width='12' height='8' rx='4'/%3E%3Cpath d='M38 12 h6'/%3E%3Crect x='5' y='55' width='10' height='7' rx='3'/%3E%3Cpath d='M7 59 h6'/%3E%3Ccircle cx='70' cy='15' r='5'/%3E%3Cpath d='M67 13 Q70 9 73 13'/%3E%3C/g%3E%3C/svg%3E")`,
@@ -48,9 +51,9 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
         backgroundSize: "80px 80px",
       }} />
 
-      {/* Top countdown bubble */}
+      {/* Countdown bubble */}
       <div style={{
-        marginTop: 28, marginBottom: 0,
+        marginTop: 28,
         background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
         border: "1px solid rgba(255,255,255,0.12)",
         borderRadius: 30, padding: "6px 22px",
@@ -62,7 +65,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
         {mm}:{ss}
       </div>
 
-      {/* Main content card */}
+      {/* Card */}
       <div style={{
         marginTop: 18,
         width: "calc(100% - 28px)", maxWidth: 420,
@@ -74,7 +77,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
         boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
         display: "flex", flexDirection: "column",
       }}>
-        {/* Header row */}
+        {/* Header */}
         <div style={{ padding: "16px 18px 12px", display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
@@ -96,7 +99,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
           </div>
         </div>
 
-        {/* Ad content area */}
+        {/* Ad iframe area */}
         <div style={{
           margin: "0 14px",
           height: 200,
@@ -105,18 +108,14 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
           border: "1px solid rgba(255,255,255,0.07)",
           overflow: "hidden",
           position: "relative",
-          display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {/* Cat pattern inside ad area too */}
-          <div style={{
-            position: "absolute", inset: 0, pointerEvents: "none",
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.5' opacity='0.08'%3E%3Ccircle cx='15' cy='15' r='6'/%3E%3Cpath d='M12 13 Q15 9 18 13'/%3E%3Ccircle cx='13.5' cy='14' r='1' fill='%23fff'/%3E%3Ccircle cx='16.5' cy='14' r='1' fill='%23fff'/%3E%3Ccircle cx='45' cy='40' r='5'/%3E%3Cpath d='M42 38 Q45 34 48 38'/%3E%3Ccircle cx='43.5' cy='39' r='1' fill='%23fff'/%3E%3Ccircle cx='46.5' cy='39' r='1' fill='%23fff'/%3E%3Crect x='28' y='5' width='8' height='6' rx='3'/%3E%3Cpath d='M30 8 h4'/%3E%3Ccircle cx='50' cy='10' r='4'/%3E%3Cpath d='M47 8 Q50 5 53 8'/%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundRepeat: "repeat",
-            backgroundSize: "60px 60px",
-          }} />
-
-          {timeLeft > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, zIndex: 1 }}>
+          {/* Loading spinner shown until iframe loads */}
+          {!iframeLoaded && (
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              gap: 10, zIndex: 2, background: "#141827",
+            }}>
               <div style={{
                 width: 36, height: 36, borderRadius: "50%",
                 border: "3px solid rgba(255,255,255,0.15)",
@@ -126,12 +125,18 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
               <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: 0 }}>جاري تحميل الإعلان...</p>
             </div>
           )}
-          {timeLeft === 0 && (
-            <div style={{ zIndex: 1, textAlign: "center" }}>
-              <div style={{ fontSize: 40 }}>✅</div>
-              <p style={{ color: "#4ade80", fontSize: 14, fontWeight: 700, margin: "8px 0 0" }}>اكتمل الإعلان!</p>
-            </div>
-          )}
+          <iframe
+            src={MONETAG_DIRECT_LINK}
+            style={{
+              width: "100%", height: "100%",
+              border: "none", display: "block",
+              opacity: iframeLoaded ? 1 : 0,
+              transition: "opacity 0.3s",
+            }}
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            onLoad={() => setIframeLoaded(true)}
+            title="ad"
+          />
         </div>
 
         {/* Footer */}
