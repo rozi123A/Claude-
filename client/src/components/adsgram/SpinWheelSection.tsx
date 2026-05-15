@@ -106,7 +106,7 @@ import { useState, useEffect, useRef } from "react";
 
     // Show modal automatically when spins reach 0
     useEffect(() => {
-      if (user.spinsLeft === 0 && getAdSpinsUsed() < MAX_AD_SPINS) {
+      if (Number(user.spinsLeft) === 0 && getAdSpinsUsed() < MAX_AD_SPINS) {
         const timer = setTimeout(() => setShowNoSpinsModal(true), 800);
         return () => clearTimeout(timer);
       }
@@ -194,7 +194,7 @@ import { useState, useEffect, useRef } from "react";
     }
 
     async function handleSpin() {
-      if (isSpinning || user.spinsLeft <= 0) return;
+      if (isSpinning || Number(user.spinsLeft) <= 0) return;
       setIsSpinning(true);
       if (!audioCtxRef.current) audioCtxRef.current = getAudioCtx();
       const actx = audioCtxRef.current;
@@ -229,7 +229,7 @@ import { useState, useEffect, useRef } from "react";
             onReward({ balance: wonBalance, spinsLeft: wonSpins });
             setIsSpinning(false);
             // Show modal if no spins left and can still watch ads
-            if (wonSpins === 0 && getAdSpinsUsed() < MAX_AD_SPINS) {
+            if (Number(wonSpins) === 0 && getAdSpinsUsed() < MAX_AD_SPINS) {
               setTimeout(() => setShowNoSpinsModal(true), 1200);
             }
           }
@@ -368,10 +368,10 @@ import { useState, useEffect, useRef } from "react";
               <canvas
                 ref={canvasRef}
                 width={320} height={320}
-                onClick={!isSpinning && user.spinsLeft > 0 ? handleSpin : undefined}
-                className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && user.spinsLeft > 0 ? "hover:scale-105" : ""}`}
+                onClick={!isSpinning && Number(user.spinsLeft) > 0 ? handleSpin : undefined}
+                className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && Number(user.spinsLeft) > 0 ? "hover:scale-105" : ""}`}
               />
-              {!isSpinning && user.spinsLeft > 0 && (
+              {!isSpinning && Number(user.spinsLeft) > 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
                   <div className="animate-ping absolute h-16 w-16 rounded-full bg-yellow-400/20" />
                 </div>
@@ -392,7 +392,7 @@ import { useState, useEffect, useRef } from "react";
             </div>
 
             {/* Spin / Watch Ad button */}
-            {user.spinsLeft > 0 ? (
+            {Number(user.spinsLeft) > 0 ? (
               <>
                 <button
                   onClick={handleSpin}
@@ -417,7 +417,7 @@ import { useState, useEffect, useRef } from "react";
                 <div className="bg-slate-800/60 border border-purple-700/40 rounded-xl p-4 text-center space-y-1">
                   <p className="text-yellow-400 font-bold text-sm">{t.no_spins_left}</p>
                   <p className="text-gray-400 text-xs">{t.watch_ad_for_spin_desc}</p>
-                  {adSpinsLeft > 0 && (
+                  {Number(adSpinsLeft) > 0 && (
                     <p className="text-purple-400 text-xs font-bold">
                       {adSpinsLeft}/{MAX_AD_SPINS} {lang === "ar" ? "إعلان متبقي اليوم" : lang === "ru" ? "реклама осталась" : "ads left today"}
                     </p>
@@ -426,7 +426,7 @@ import { useState, useEffect, useRef } from "react";
 
                 {adSpinsLeft > 0 ? (
                   <button
-                    onClick={() => setShowNoSpinsModal(true)} disabled={adLoading}
+                    onClick={handleWatchSpinAd} disabled={adLoading}
                     className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
                     style={{
                       background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
