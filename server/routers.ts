@@ -13,8 +13,8 @@ import { ENV } from "./_core/env";
 const tokenRateMap = new Map();
 const MIN_AD_SECONDS = 14;
 const INSTANT_BAN_SECONDS = 5;
-const RATE_WINDOW_MS = 60_000;
-const MAX_TOKENS_PER_MIN = 5;
+const RATE_WINDOW_MS = 120_000;
+const MAX_TOKENS_PER_MIN = 3;
 
 function checkRateLimit(telegramId) {
   const now = Date.now();
@@ -225,7 +225,7 @@ export const appRouter = router({
 
         // ── Anti-bot checks ──
         if (user.isBanned === true) return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
-        if (user.todayAds >= 50) return { success: false, message: "Daily limit reached" };
+        if (user.todayAds >= 10) return { success: false, message: "Daily limit reached" };
         if (!checkRateLimit(input.telegramId)) {
           return { success: false, message: "طلبات كثيرة جداً — انتظر دقيقة" };
         }
