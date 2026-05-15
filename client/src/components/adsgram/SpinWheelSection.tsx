@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
   import { useToast } from "@/hooks/use-toast";
   import { trpc } from "@/lib/trpc";
   import { translations, type Language } from "@/lib/i18n";
-  import AdOverlay from "./AdOverlay";
+
 
   interface UserData {
     telegramId: number;
@@ -91,8 +91,8 @@ import { useState, useEffect, useRef } from "react";
     const [rotation,        setRotation]        = useState(0);
     const [adLoading,       setAdLoading]       = useState(false);
     const [adSpinsUsed,     setAdSpinsUsed]     = useState(0);
-    const [showAdOverlay,   setShowAdOverlay]   = useState(false);
-    const [pendingToken,    setPendingToken]    = useState<string | null>(null);
+
+
     const [showNoSpinsModal, setShowNoSpinsModal] = useState(false);
     const { toast } = useToast();
     const t = translations[lang];
@@ -151,48 +151,37 @@ import { useState, useEffect, useRef } from "react";
     }
 
     async function handleWatchSpinAd() {
-      setShowNoSpinsModal(false);
-      const initData = (window as any).Telegram?.WebApp?.initData || "";
-      setAdLoading(true);
-      try {
-        const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
-        if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
-        setPendingToken(tok.token);
-        setShowAdOverlay(true);
-      } catch (e: any) {
-        toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
-      } finally {
-        setAdLoading(false);
+        setShowNoSpinsModal(false);
+        const initData = (window as any).Telegram?.WebApp?.initData || "";
+        setAdLoading(true);
+        try {
+          const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
+          if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
+          const AdController = (window as any).Adsgram?.init({ blockId: user.adsgramBlockId });
+          if (!AdController) throw new Error("Adsgram SDK غير محمّل، حاول لاحقاً");
+          await AdController.show();
+          const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
+          if (cl.success) {
+            bumpAdSpins();
+            setAdSpinsUsed(getAdSpinsUsed());
+            const newBal   = cl.balance   !== undefined ? Number(cl.balance)   : user.balance + 100;
+            const newSpins = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
+            onReward({ balance: newBal, spinsLeft: newSpins });
+            toast({ title: "🎡 دورة جاهزة!", description: "اضغط على زر GO في العجلة الآن للعب!" });
+          } else {
+            throw new Error(cl.message || "فشل الحصول على الدورة");
+          }
+        } catch (e: any) {
+          if (e?.type === "show") {
+            toast({ title: "تنبيه", description: "يجب مشاهدة الإعلان كاملاً للحصول على الدورة", variant: "destructive" });
+          } else {
+            toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
+          }
+        } finally {
+          setAdLoading(false);
+        }
       }
-    }
-
-    async function handleAdClaim() {
-      if (!pendingToken) return;
-      const initData = (window as any).Telegram?.WebApp?.initData || "";
-      const cl = await claimMutation.mutateAsync({
-        telegramId: user.telegramId,
-        token: pendingToken,
-        initData,
-        type: "spin",
-      });
-      if (cl.success) {
-        bumpAdSpins();
-        setAdSpinsUsed(getAdSpinsUsed());
-        const newBal   = cl.balance   !== undefined ? Number(cl.balance)   : user.balance + 100;
-        const newSpins = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
-        onReward({ balance: newBal, spinsLeft: newSpins });
-        setShowAdOverlay(false); setPendingToken(null);
-        toast({ title: "🎡 دورة جاهزة!", description: "اضغط على زر GO في العجلة الآن للعب!" });
-      } else {
-        toast({ title: "خطأ", description: cl.message || "فشل الحصول على الدورة", variant: "destructive" });
-      }
-    }
-
-    function handleAdClose() {
-      setShowAdOverlay(false);
-      setPendingToken(null);
-    }
-
+  
     async function handleSpin() {
       if (isSpinning || Number(user.spinsLeft) <= 0) return;
       setIsSpinning(true);
@@ -245,15 +234,6 @@ import { useState, useEffect, useRef } from "react";
 
     return (
       <>
-        {/* Ad Overlay */}
-        {showAdOverlay && (
-          <AdOverlay
-            seconds={15}
-            rewardLabel="دورة مجانية 🎡"
-            onClaim={handleAdClaim}
-            onClose={handleAdClose}
-          />
-        )}
 
         {/* No Spins Modal */}
         {showNoSpinsModal && (
