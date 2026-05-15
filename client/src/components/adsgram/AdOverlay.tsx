@@ -7,20 +7,12 @@ interface AdOverlayProps {
   onClose: () => void;
 }
 
-function triggerMonetagAd() {
-  const fn = (window as any)["show_10996226"];
-  if (typeof fn === "function") { try { fn(); } catch {} }
-}
-
 export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأة", onClaim, onClose }: AdOverlayProps) {
   const [timeLeft, setTimeLeft] = useState(seconds);
   const [claimed,  setClaimed]  = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Trigger real Monetag ad in background for impression
-    triggerMonetagAd();
-
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) { clearInterval(timerRef.current!); return 0; }
@@ -59,7 +51,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
       {/* Top countdown bubble */}
       <div style={{
         marginTop: 28, marginBottom: 0,
-        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)",
+        background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
         border: "1px solid rgba(255,255,255,0.12)",
         borderRadius: 30, padding: "6px 22px",
         fontWeight: 900, fontSize: 20, color: "#fff",
@@ -88,7 +80,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
             width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
             background: "linear-gradient(135deg,#ef4444,#b91c1c)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 24, fontWeight: 900,
+            fontSize: 24, fontWeight: 900, color: "#fff",
             boxShadow: "0 2px 12px rgba(239,68,68,0.4)",
           }}>!</div>
           <div style={{ flex: 1 }}>
@@ -115,8 +107,9 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
           position: "relative",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
+          {/* Cat pattern inside ad area too */}
           <div style={{
-            position: "absolute", inset: 0,
+            position: "absolute", inset: 0, pointerEvents: "none",
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.5' opacity='0.08'%3E%3Ccircle cx='15' cy='15' r='6'/%3E%3Cpath d='M12 13 Q15 9 18 13'/%3E%3Ccircle cx='13.5' cy='14' r='1' fill='%23fff'/%3E%3Ccircle cx='16.5' cy='14' r='1' fill='%23fff'/%3E%3Ccircle cx='45' cy='40' r='5'/%3E%3Cpath d='M42 38 Q45 34 48 38'/%3E%3Ccircle cx='43.5' cy='39' r='1' fill='%23fff'/%3E%3Ccircle cx='46.5' cy='39' r='1' fill='%23fff'/%3E%3Crect x='28' y='5' width='8' height='6' rx='3'/%3E%3Cpath d='M30 8 h4'/%3E%3Ccircle cx='50' cy='10' r='4'/%3E%3Cpath d='M47 8 Q50 5 53 8'/%3E%3C/g%3E%3C/svg%3E")`,
             backgroundRepeat: "repeat",
             backgroundSize: "60px 60px",
@@ -130,7 +123,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
                 borderTopColor: "rgba(255,255,255,0.6)",
                 animation: "adSpin 1s linear infinite",
               }} />
-              <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, margin: 0 }}>جاري تحميل الإعلان...</p>
+              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: 0 }}>جاري تحميل الإعلان...</p>
             </div>
           )}
           {timeLeft === 0 && (
@@ -155,7 +148,7 @@ export default function AdOverlay({ seconds = 15, rewardLabel = "المكافأ�
               background: canClaim
                 ? "linear-gradient(135deg,#16a34a,#15803d)"
                 : "rgba(255,255,255,0.07)",
-              color: canClaim ? "#fff" : "rgba(255,255,255,0.2)",
+              color: canClaim ? "#fff" : "rgba(255,255,255,0.25)",
               fontWeight: 900, fontSize: 15,
               cursor: canClaim ? "pointer" : "not-allowed",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
