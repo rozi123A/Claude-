@@ -56,6 +56,10 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
       toast({ title: t.notice, description: `${t.wait_before_next} ${Math.ceil(cooldownRemaining)} ${t.seconds}`, variant: "destructive" });
       return;
     }
+    if (!user.adsgramBlockId) {
+      toast({ title: "خطأ", description: "لم يتم تهيئة ADSGRAM_BLOCK_ID في الخادم.", variant: "destructive" });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -106,7 +110,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
     <>
       {showOverlay && (
         <AdOverlay
-          seconds={15}
+          blockId={user.adsgramBlockId}
           rewardLabel={`+${user.adReward} نقطة`}
           onClaim={handleClaim}
           onClose={handleClose}
