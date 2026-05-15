@@ -32,6 +32,8 @@ services:
         sync: false
       - key: WEBAPP_URL
         sync: false
+      - key: ADSGRAM_BLOCK_ID
+        sync: false
       - key: AD_REWARD
         value: "100"
       - key: MIN_WITHDRAW
