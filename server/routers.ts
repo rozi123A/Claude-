@@ -9,6 +9,26 @@ import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
 
+// ── Anti-bot: in-memory rate limiter ──
+const tokenRateMap = new Map();
+const MIN_AD_SECONDS = 14;
+const INSTANT_BAN_SECONDS = 5;
+const RATE_WINDOW_MS = 60_000;
+const MAX_TOKENS_PER_MIN = 5;
+
+function checkRateLimit(telegramId) {
+  const now = Date.now();
+  const rec = tokenRateMap.get(telegramId);
+  if (!rec || now - rec.windowStart > RATE_WINDOW_MS) {
+    tokenRateMap.set(telegramId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (rec.count >= MAX_TOKENS_PER_MIN) return false;
+  rec.count++;
+  return true;
+}
+
+
 // Helper to verify Telegram WebApp data
 function verifyTelegramWebApp(initData: string) {
   if (!initData) return null;
@@ -203,7 +223,12 @@ export const appRouter = router({
         const user = await getTelegramUser(input.telegramId);
         if (!user) return { success: false, message: "User not found" };
 
+        // ── Anti-bot checks ──
+        if (user.isBanned === "true") return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
         if (user.todayAds >= 50) return { success: false, message: "Daily limit reached" };
+        if (!checkRateLimit(input.telegramId)) {
+          return { success: false, message: "طلبات كثيرة جداً — انتظر دقيقة" };
+        }
 
         const token = uuidv4();
         await createAdToken(token, input.telegramId);
@@ -226,9 +251,35 @@ export const appRouter = router({
           return { success: false, message: "Invalid token" };
         }
 
+        // ── Anti-bot: enforce minimum viewing time ──
+        const tokenAge = (Date.now() - new Date(adToken.createdAt).getTime()) / 1000;
+        if (tokenAge < INSTANT_BAN_SECONDS) {
+          // Claimed in <5s = bot → auto-ban + alert admin
+          await markAdTokenUsed(input.token);
+          await banTelegramUser(input.telegramId, true);
+          const _bt = process.env.BOT_TOKEN;
+          const _ai = process.env.ADMIN_TELEGRAM_ID || process.env.ADMIN_CHAT_ID;
+          if (_bt && _ai) {
+            fetch(`https://api.telegram.org/bot${_bt}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: _ai,
+                text: `🤖 <b>بوت مكتشف وتم حظره</b>\n\nTelegram ID: <code>${input.telegramId}</code>\nالوقت بين التوكن والـ claim: <b>${tokenAge.toFixed(2)}s</b>`,
+                parse_mode: "HTML",
+              }),
+            }).catch(() => {});
+          }
+          return { success: false, message: "تم اكتشاف نشاط آلي — تم تعليق حسابك" };
+        }
+        if (tokenAge < MIN_AD_SECONDS) {
+          return { success: false, message: `يجب مشاهدة الإعلان ${MIN_AD_SECONDS} ثانية على الأقل` };
+        }
+
         await markAdTokenUsed(input.token);
         let user = await getTelegramUser(input.telegramId);
         if (!user) return { success: false, message: "User not found" };
+        if (user.isBanned === "true") return { success: false, message: "تم تعليق حسابك" };
 
         const reward = 100;
         const currentBalance = Number(user.balance) || 0;
