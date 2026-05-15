@@ -310,7 +310,7 @@ import { useState, useEffect, useRef } from "react";
                 </div>
               </div>
 
-              {adSpinsLeft > 0 ? (
+
                 <button
                   onClick={handleWatchSpinAd}
                   disabled={adLoading}
@@ -329,12 +329,12 @@ import { useState, useEffect, useRef } from "react";
                   }
                   {adLoading ? "جاري التحميل..." : `شاهد إعلاناً واربح دورة 🎡`}
                 </button>
-              ) : (
-                <div style={{ textAlign: "center", padding: "16px", background: "rgba(255,255,255,0.04)", borderRadius: 16 }}>
-                  <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>⏰ وصلت للحد اليومي</p>
-                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>تجدد الدورات كل يوم عند منتصف الليل</p>
-                </div>
-              )}
+
+
+
+
+
+
 
               <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 14 }}>
                 متبقي اليوم: {adSpinsLeft} من {MAX_AD_SPINS} إعلانات
@@ -424,7 +424,7 @@ import { useState, useEffect, useRef } from "react";
                   )}
                 </div>
 
-                {adSpinsLeft > 0 ? (
+
                   <button
                     onClick={handleWatchSpinAd} disabled={adLoading}
                     className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
@@ -439,13 +439,13 @@ import { useState, useEffect, useRef } from "react";
                     <Tv2 className="h-5 w-5" />
                     {t.watch_ad_earn_spin}
                   </button>
-                ) : (
-                  <div className="text-center py-3 text-xs text-gray-500">{t.daily_renewal}</div>
-                )}
 
-                <p className="text-[10px] text-gray-500 text-center tracking-widest font-bold">
-                  {t.daily_renewal}
-                </p>
+
+
+
+
+
+
               </div>
             )}
           </CardContent>
