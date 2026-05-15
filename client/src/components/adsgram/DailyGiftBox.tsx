@@ -7,7 +7,8 @@ import { useState, useEffect, useRef } from "react";
     telegramId: number;
     initData: string;
     lang: Language;
-    onClaim: (update: { balance: number; totalEarned: number }) => void;
+    lang: Language;
+    adsgramBlockId: string;
   }
 
   const LS_KEY = (id: number) => `daily_gift_next_${id}`;
@@ -52,25 +53,30 @@ import { useState, useEffect, useRef } from "react";
       return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
     }, [nextClaim]);
 
-    const handleBoxClick = () => {
+    const handleBoxClick = async () => {
       if (!canClaim || isOpening) return;
-      // Always show ad overlay first before claiming
-      setShowAdOverlay(true);
-    };
-
-    // Called when user finishes watching the ad and clicks claim inside AdOverlay
-    const handleAdClaim = async () => {
-      setShowAdOverlay(false);
-      await handleClaim();
-    };
-
-    // Called when user closes the overlay without watching
-    const handleAdClose = () => {
-      setShowAdOverlay(false);
+      setIsOpening(true);
+      try {
+        const AdController = (window as any).Adsgram?.init({ blockId: adsgramBlockId });
+        if (!AdController) {
+          toast({ title: "خطأ", description: "Adsgram غير محمّل، حاول لاحقاً", variant: "destructive" });
+          setIsOpening(false);
+          return;
+        }
+        await AdController.show();
+        await handleClaim();
+      } catch (e: any) {
+        if (e?.type === "show") {
+          toast({ title: "تنبيه", description: "يجب مشاهدة الإعلان كاملاً لفتح الهدية", variant: "destructive" });
+        } else {
+          toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
+        }
+        setIsOpening(false);
+      }
     };
 
     const handleClaim = async () => {
-      if (!canClaim || isOpening) return;
+      if (!canClaim) return;
       setIsOpening(true);
       try {
         const result = await claimMutation.mutateAsync({ telegramId, initData });
