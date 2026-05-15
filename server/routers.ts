@@ -281,7 +281,7 @@ export const appRouter = router({
         if (!user) return { success: false, message: "User not found" };
         if (user.isBanned === "true") return { success: false, message: "تم تعليق حسابك" };
 
-        const reward = 100;
+        const reward = 10;
         const currentBalance = Number(user.balance) || 0;
         const currentTotalEarned = Number(user.totalEarned) || 0;
         const currentTodayAds = Number(user.todayAds) || 0;
