@@ -171,7 +171,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
       const newBal   = cl.balance   !== undefined ? Number(cl.balance)   : user.balance + 100;
       const newSpins = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
       onReward({ balance: newBal, spinsLeft: newSpins });
-      toast({ title: "🎡 تم!", description: "حصلت على دورة مجانية!" });
+      setShowAdOverlay(false); setPendingToken(null); toast({ title: "🎡 دورة جاهزة!", description: "اضغط على زر GO في العجلة الآن للعب!" });
     } else {
       toast({ title: "خطأ", description: cl.message || "فشل الحصول على الدورة", variant: "destructive" });
     }
