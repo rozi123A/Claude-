@@ -240,6 +240,7 @@ import { useState, useEffect, useCallback } from "react";
                   <div style={{ padding: 16, display: "flex", justifyContent: "center" }}>
                     <DailyGiftBox
                       telegramId={safeUser.telegramId}
+                      adsgramBlockId={safeUser.adsgramBlockId}
                       initData={typeof window !== "undefined" && window.Telegram?.WebApp ? window.Telegram.WebApp.initData || "" : ""}
                       lang={lang}
                       onClaim={(update) => setUser(prev => prev ? { ...prev, ...update } : prev)}
