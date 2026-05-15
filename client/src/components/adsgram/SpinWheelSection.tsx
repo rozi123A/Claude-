@@ -106,7 +106,7 @@ import { useState, useEffect, useRef } from "react";
 
     // Show modal automatically when spins reach 0
     useEffect(() => {
-      if (Number(user.spinsLeft) === 0 && getAdSpinsUsed() < MAX_AD_SPINS) {
+      if (Number(user.spinsLeft) === 0) {
         const timer = setTimeout(() => setShowNoSpinsModal(true), 800);
         return () => clearTimeout(timer);
       }
@@ -228,8 +228,8 @@ import { useState, useEffect, useRef } from "react";
             const wonSpins   = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
             onReward({ balance: wonBalance, spinsLeft: wonSpins });
             setIsSpinning(false);
-            // Show modal if no spins left and can still watch ads
-            if (Number(wonSpins) === 0 && getAdSpinsUsed() < MAX_AD_SPINS) {
+            // Show modal when no spins left
+            if (Number(wonSpins) === 0) {
               setTimeout(() => setShowNoSpinsModal(true), 1200);
             }
           }
