@@ -221,7 +221,7 @@ export const appRouter = router({
         if (!verified || verified.id !== input.telegramId) return { success: false, message: "Invalid data" };
 
         const adToken = await getAdToken(input.token);
-        if (!adToken || adToken.telegramId !== input.telegramId || adToken.used === "true") {
+        if (!adToken || Number(adToken.telegramId) !== Number(input.telegramId) || adToken.used === "true") {
           return { success: false, message: "Invalid token" };
         }
 
