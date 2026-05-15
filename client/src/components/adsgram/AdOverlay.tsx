@@ -7,28 +7,61 @@ interface AdOverlayProps {
   onClose: () => void;
 }
 
-const AD_SPONSORS = [
-  { name: "Rich Dog REAL MONEY 💰🐶", desc: "Get $RICH & Famous with hash miner, card upgrades and trading! Check in daily for the secret prize and open mystery boxes to win the USDT lottery!" },
-  { name: "CryptoFarm 🌾", desc: "Farm crypto every day! Collect coins, upgrade your farm and earn real USDT rewards daily. Join millions of players now!" },
-  { name: "Lucky Wheel Pro 🎡", desc: "Spin and win real crypto prizes every hour! Invite friends, complete tasks and climb the leaderboard to get the top reward!" },
-];
-
 export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose }: AdOverlayProps) {
   const [timeLeft, setTimeLeft] = useState(seconds);
   const [canClaim, setCanClaim] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [sponsor] = useState(() => AD_SPONSORS[Math.floor(Math.random() * AD_SPONSORS.length)]);
+  const [adLoaded, setAdLoaded] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const adContainerRef = useRef<HTMLDivElement>(null);
 
+  // Load and show real Monetag interstitial ad when overlay opens
   useEffect(() => {
-    if (document.getElementById("monetag-script-overlay")) return;
-    const s = document.createElement("script");
-    s.id = "monetag-script-overlay";
-    s.src = "https://3nbf4.com/400/10996226";
-    s.async = true;
-    document.head.appendChild(s);
+    // Try show_10996226 (Monetag interstitial) if available
+    const tryShowAd = () => {
+      const fn = (window as any)["show_10996226"];
+      if (typeof fn === "function") {
+        try { fn(); setAdLoaded(true); } catch {}
+        return true;
+      }
+      return false;
+    };
+
+    if (!tryShowAd()) {
+      // Script not loaded yet — load it and retry
+      if (!document.getElementById("monetag-interstitial")) {
+        const s = document.createElement("script");
+        s.id = "monetag-interstitial";
+        s.src = "//alwingulla.com/88/tag.min.js";
+        s.setAttribute("data-zone", "10996226");
+        s.setAttribute("data-type", "1");
+        s.async = true;
+        s.setAttribute("data-cfasync", "false");
+        s.onload = () => {
+          setTimeout(() => {
+            if (tryShowAd()) setAdLoaded(true);
+          }, 500);
+        };
+        document.head.appendChild(s);
+      } else {
+        setTimeout(() => {
+          if (tryShowAd()) setAdLoaded(true);
+        }, 800);
+      }
+    }
+
+    // Also load in-page push for additional impression
+    if (!document.getElementById("monetag-inpage")) {
+      const s2 = document.createElement("script");
+      s2.id = "monetag-inpage";
+      s2.src = "//3nbf4.com/400/10996226";
+      s2.async = true;
+      s2.setAttribute("data-cfasync", "false");
+      document.head.appendChild(s2);
+    }
   }, []);
 
+  // Countdown
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
@@ -54,16 +87,16 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
   const pct = ((seconds - timeLeft) / seconds) * 100;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#111827]">
+    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "#0f1117" }}>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/60 border-b border-white/5">
+      <div className="flex items-center justify-between px-4 py-3 bg-black/70 border-b border-white/5">
         <span className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">إعلان</span>
         <div className="px-4 py-1 bg-slate-800 rounded-full border border-slate-700">
           <span className="text-sm font-black text-white tabular-nums">
             {timeLeft > 0 ? `${mm}:${ss}` : "✓ جاهز"}
           </span>
         </div>
-        <span className="text-[11px] text-gray-600 font-bold">مدعوم من Monetag</span>
+        <span className="text-[11px] text-gray-500 font-bold">مدعوم من Monetag</span>
       </div>
 
       {/* Progress bar */}
@@ -74,31 +107,35 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
         />
       </div>
 
-      {/* Ad creative */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-4 gap-4">
-        <div
-          className="w-48 h-48 rounded-2xl flex items-center justify-center relative overflow-hidden"
-          style={{ background: "radial-gradient(ellipse at center,#1a1a6e 0%,#0a0a2e 70%)" }}
-        >
-          <div className="absolute inset-0 bg-blue-900/20 animate-pulse" />
-          <span
-            className="text-8xl font-black relative z-10 select-none"
-            style={{ filter: "drop-shadow(0 0 24px #60a5fa) drop-shadow(0 0 48px #3b82f6)", color: "#60a5fa" }}
-          >?</span>
-        </div>
+      {/* Ad area — Monetag renders here */}
+      <div
+        ref={adContainerRef}
+        className="flex-1 flex flex-col items-center justify-center relative overflow-hidden"
+        id="monetag-ad-container"
+      >
+        {/* Background pattern */}
+        <div className="absolute inset-0 opacity-5"
+          style={{ backgroundImage: "radial-gradient(circle, #60a5fa 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+        />
 
-        <div className="w-full max-w-xs space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center text-sm font-black shrink-0">
-              {sponsor.name[0]}
-            </div>
-            <p className="text-sm font-black text-white leading-tight">{sponsor.name}</p>
+        {/* Monetag will inject its ad via the global show function */}
+        {/* This placeholder shows while ad loads */}
+        <div className="relative z-10 flex flex-col items-center gap-4 px-6">
+          <div
+            className="w-52 h-52 rounded-2xl flex items-center justify-center"
+            style={{ background: "radial-gradient(ellipse at center,#1a1a6e 0%,#0a0a2e 70%)" }}
+          >
+            <div className="absolute inset-0 rounded-2xl animate-pulse bg-blue-900/20" />
+            <span
+              className="text-9xl font-black relative z-10 select-none"
+              style={{ filter: "drop-shadow(0 0 24px #60a5fa) drop-shadow(0 0 48px #3b82f6)", color: "#60a5fa" }}
+            >?</span>
           </div>
-          <p className="text-xs text-gray-400 leading-relaxed line-clamp-3">{sponsor.desc}</p>
-          <span className="inline-block text-[10px] text-gray-600 border border-gray-700 px-2 py-0.5 rounded">Ad</span>
+          <p className="text-gray-400 text-sm text-center">
+            {adLoaded ? "الإعلان يعمل الآن" : "جاري تحميل الإعلان..."}
+          </p>
+          <p className="text-[11px] text-gray-600">ads by Monetag</p>
         </div>
-
-        <p className="text-[11px] text-gray-500 font-medium">ads by Monetag</p>
       </div>
 
       {/* Claim button */}
@@ -115,7 +152,9 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
             border: "none",
           }}
         >
-          {claiming ? "⏳ جاري الاستلام..." : canClaim
+          {claiming
+            ? "⏳ جاري الاستلام..."
+            : canClaim
             ? <><span>⬇</span><span>انقر للحصول على المكافأة! ({rewardLabel})</span></>
             : <><span>⬇</span><span>جاري الاستلام... {timeLeft}</span></>
           }
