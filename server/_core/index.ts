@@ -7,7 +7,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
-import { getDb } from "../db";
+import { getDb, initDb } from "../db";
 import { startBot } from "../bot";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import path from "path";
@@ -46,7 +46,7 @@ self.lary = ""
 importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')`;
 
 async function startServer() {
-  console.log("[Database] Skipping auto-migrations on startup.");
+  await initDb();
 
   const app = express();
   const server = createServer(app);
