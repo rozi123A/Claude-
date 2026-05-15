@@ -40,7 +40,8 @@ function verifyTelegramWebApp(initData: string) {
     const calculatedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
     if (calculatedHash !== hash) {
-      console.warn("[Auth] Hash mismatch — returning user data anyway (check BOT_TOKEN)");
+      console.warn("[Auth] Hash mismatch — rejecting request");
+    return null;
     }
 
     return userData;
