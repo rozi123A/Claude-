@@ -192,12 +192,16 @@ import { useState, useEffect } from "react";
       }
     };
 
-    const openTelegramChat = (telegramId: number) => {
+    const openTelegramChat = (telegramId: number, username?: string) => {
       const tg = (window as any)?.Telegram?.WebApp;
-      if (tg) {
-        tg.openTelegramLink(`https://t.me/@id${telegramId}`);
+      if (username) {
+        const url = `https://t.me/${username}`;
+        if (tg?.openTelegramLink) tg.openTelegramLink(url);
+        else window.open(url, "_blank");
       } else {
-        window.open(`tg://user?id=${telegramId}`, "_blank");
+        const url = `tg://user?id=${telegramId}`;
+        if (tg?.openLink) tg.openLink(url);
+        else window.open(url, "_blank");
       }
     };
 
@@ -532,7 +536,7 @@ import { useState, useEffect } from "react";
 
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
-                          onClick={() => openTelegramChat(w.telegramId)}
+                          onClick={() => openTelegramChat(w.telegramId, w.username)}
                           style={{ flex: 1, height: 36, borderRadius: 10, border: "1px solid rgba(96,165,250,0.3)", background: "rgba(96,165,250,0.1)", color: "#60A5FA", fontWeight: 700, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                         >
                           <MessageCircle size={13} /> راسله
