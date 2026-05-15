@@ -406,88 +406,124 @@ export async function getAllWithdrawals(status?: string) {
 
 
 export async function initDb() {
-  if (!_pool) await getDb();
-  if (!_pool) {
-    console.warn('[Database] Cannot initialize tables: no pool available');
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    console.error('[Database] Cannot initialize: DATABASE_URL is not set');
     return;
   }
 
-  const statements = [
-    `CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      "openId" VARCHAR(64) NOT NULL UNIQUE,
-      name TEXT,
-      email VARCHAR(320),
-      "loginMethod" VARCHAR(64),
-      role TEXT DEFAULT 'user' NOT NULL,
-      "createdAt" TIMESTAMP DEFAULT NOW() NOT NULL,
-      "updatedAt" TIMESTAMP DEFAULT NOW() NOT NULL,
-      "lastSignedIn" TIMESTAMP DEFAULT NOW() NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS telegram_users (
-      id SERIAL PRIMARY KEY,
-      telegram_id BIGINT NOT NULL UNIQUE,
-      username VARCHAR(255),
-      first_name VARCHAR(255),
-      last_name VARCHAR(255),
-      photo_url TEXT,
-      balance BIGINT DEFAULT 0 NOT NULL,
-      total_earned BIGINT DEFAULT 0 NOT NULL,
-      today_ads INTEGER DEFAULT 0 NOT NULL,
-      today_ads_date VARCHAR(100),
-      spins_left INTEGER DEFAULT 5 NOT NULL,
-      spins_date VARCHAR(100),
-      last_ad_time VARCHAR(100),
-      completed_tasks TEXT,
-      referred_by BIGINT,
-      referral_code VARCHAR(32) UNIQUE,
-      is_banned BOOLEAN DEFAULT FALSE NOT NULL,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS transactions (
-      id SERIAL PRIMARY KEY,
-      telegram_id BIGINT NOT NULL,
-      type TEXT NOT NULL,
-      points BIGINT NOT NULL,
-      metadata TEXT,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS withdrawals (
-      id SERIAL PRIMARY KEY,
-      telegram_id BIGINT NOT NULL,
-      amount BIGINT NOT NULL,
-      stars INTEGER NOT NULL,
-      method VARCHAR(50) DEFAULT 'telegram_stars',
-      status TEXT DEFAULT 'pending' NOT NULL,
-      processed_at TIMESTAMP,
-      note TEXT,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS ad_tokens (
-      id SERIAL PRIMARY KEY,
-      token VARCHAR(255) NOT NULL UNIQUE,
-      telegram_id BIGINT NOT NULL,
-      used BOOLEAN DEFAULT FALSE NOT NULL,
-      invalid BOOLEAN DEFAULT FALSE NOT NULL,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS settings (
-      id SERIAL PRIMARY KEY,
-      key VARCHAR(100) NOT NULL UNIQUE,
-      value TEXT,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-    )`,
+  const { Client } = await import('pg');
+  const client = new Client({
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
+  });
+
+  try {
+    await client.connect();
+    console.log('[Database] Connected for table initialization');
+  } catch (err: any) {
+    console.error('[Database] Connection failed during init:', err?.message);
+    return;
+  }
+
+  const tables = [
+    {
+      name: 'users',
+      sql: `CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        "openId" VARCHAR(64) NOT NULL UNIQUE,
+        name TEXT,
+        email VARCHAR(320),
+        "loginMethod" VARCHAR(64),
+        role TEXT DEFAULT 'user' NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updatedAt" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "lastSignedIn" TIMESTAMP DEFAULT NOW() NOT NULL
+      )`
+    },
+    {
+      name: 'telegram_users',
+      sql: `CREATE TABLE IF NOT EXISTS telegram_users (
+        id SERIAL PRIMARY KEY,
+        telegram_id BIGINT NOT NULL UNIQUE,
+        username VARCHAR(255),
+        first_name VARCHAR(255),
+        last_name VARCHAR(255),
+        photo_url TEXT,
+        balance BIGINT DEFAULT 0 NOT NULL,
+        total_earned BIGINT DEFAULT 0 NOT NULL,
+        today_ads INTEGER DEFAULT 0 NOT NULL,
+        today_ads_date VARCHAR(100),
+        spins_left INTEGER DEFAULT 5 NOT NULL,
+        spins_date VARCHAR(100),
+        last_ad_time VARCHAR(100),
+        completed_tasks TEXT,
+        referred_by BIGINT,
+        referral_code VARCHAR(32) UNIQUE,
+        is_banned BOOLEAN DEFAULT FALSE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )`
+    },
+    {
+      name: 'transactions',
+      sql: `CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+        telegram_id BIGINT NOT NULL,
+        type TEXT NOT NULL,
+        points BIGINT NOT NULL,
+        metadata TEXT,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )`
+    },
+    {
+      name: 'withdrawals',
+      sql: `CREATE TABLE IF NOT EXISTS withdrawals (
+        id SERIAL PRIMARY KEY,
+        telegram_id BIGINT NOT NULL,
+        amount BIGINT NOT NULL,
+        stars INTEGER NOT NULL,
+        method VARCHAR(50) DEFAULT 'telegram_stars',
+        status TEXT DEFAULT 'pending' NOT NULL,
+        processed_at TIMESTAMP,
+        note TEXT,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )`
+    },
+    {
+      name: 'ad_tokens',
+      sql: `CREATE TABLE IF NOT EXISTS ad_tokens (
+        id SERIAL PRIMARY KEY,
+        token VARCHAR(255) NOT NULL UNIQUE,
+        telegram_id BIGINT NOT NULL,
+        used BOOLEAN DEFAULT FALSE NOT NULL,
+        invalid BOOLEAN DEFAULT FALSE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )`
+    },
+    {
+      name: 'settings',
+      sql: `CREATE TABLE IF NOT EXISTS settings (
+        id SERIAL PRIMARY KEY,
+        key VARCHAR(100) NOT NULL UNIQUE,
+        value TEXT,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )`
+    },
   ];
 
-  for (const sql of statements) {
+  for (const table of tables) {
     try {
-      await _pool.query(sql);
+      await client.query(table.sql);
+      console.log(`[Database] ✓ Table ready: ${table.name}`);
     } catch (err: any) {
-      console.error('[Database] Failed to execute DDL:', err?.message, sql.slice(0, 60));
+      console.error(`[Database] ✗ Failed to create ${table.name}:`, err?.message);
     }
   }
-  console.log('[Database] Tables initialized successfully');
+
+  await client.end();
+  console.log('[Database] Initialization complete');
 }
