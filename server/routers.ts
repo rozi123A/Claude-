@@ -45,10 +45,10 @@ function verifyTelegramWebApp(initData: string) {
     let userData: any = null;
     try { userData = JSON.parse(userRaw); } catch { return null; }
 
-    // If no bot token configured, allow but log warning (dev/staging fallback)
+    // BOT_TOKEN required — reject all requests if not configured
     if (!botToken) {
-      console.warn("[Auth] BOT_TOKEN not set — skipping HMAC verification");
-      return userData;
+
+      return null;
     }
 
     const dataCheckString = Array.from(urlParams.entries())
