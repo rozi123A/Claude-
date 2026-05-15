@@ -1,8 +1,8 @@
-import { showMonetagAd } from "@/lib/monetag";
 import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
 import { translations, type Language } from "@/lib/i18n";
+import AdOverlay from "./AdOverlay";
 
 interface DailyGiftBoxProps {
   telegramId: number;
@@ -11,7 +11,7 @@ interface DailyGiftBoxProps {
   onClaim: (update: { balance: number; totalEarned: number }) => void;
 }
 
-const LS_KEY    = (id: number) => `daily_gift_next_${id}`;
+const LS_KEY = (id: number) => `daily_gift_next_${id}`;
 
 function getTimeLeft(nextClaim: number): number {
   const diff = nextClaim - Date.now();
@@ -28,15 +28,17 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
   const [nextClaim, setNextClaim] = useState<number>(() => {
     try { return parseInt(localStorage.getItem(LS_KEY(telegramId)) || "0"); } catch { return 0; }
   });
-  const [timeLeft,   setTimeLeft]   = useState(() => getTimeLeft(nextClaim));
-  const [isOpening,  setIsOpening]  = useState(false);
-  const [reward,     setReward]     = useState(0);
-  const [showReward, setShowReward] = useState(false);
-  const [isHovered,  setIsHovered]  = useState(false);
+  const [timeLeft,      setTimeLeft]      = useState(() => getTimeLeft(nextClaim));
+  const [isOpening,     setIsOpening]     = useState(false);
+  const [reward,        setReward]        = useState(0);
+  const [showReward,    setShowReward]    = useState(false);
+  const [isHovered,     setIsHovered]     = useState(false);
+  const [showAdOverlay, setShowAdOverlay] = useState(false);
+  const [adWatched,     setAdWatched]     = useState(false);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { toast }   = useToast();
-  const t           = translations[lang];
+  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { toast }     = useToast();
+  const t             = translations[lang];
   const claimMutation = trpc.dailyGift.claim.useMutation();
 
   const canClaim = timeLeft === 0;
@@ -53,9 +55,24 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [nextClaim]);
 
-  const handleBoxClick = async () => {
+  const handleBoxClick = () => {
     if (!canClaim || isOpening) return;
-    handleClaim();
+    if (!adWatched) {
+      setShowAdOverlay(true);
+    } else {
+      handleClaim();
+    }
+  };
+
+  const handleAdClaim = async () => {
+    setAdWatched(true);
+  };
+
+  const handleAdClose = () => {
+    setShowAdOverlay(false);
+    if (adWatched) {
+      handleClaim();
+    }
   };
 
   const handleClaim = async () => {
@@ -66,7 +83,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
       if (result.success && result.reward) {
         setReward(result.reward);
         setShowReward(true);
-        showMonetagAd(); // Monetag ad after daily gift claim
+        setAdWatched(false);
         const next = result.nextClaim ?? Date.now() + 24 * 60 * 60 * 1000;
         setNextClaim(next);
         setTimeLeft(getTimeLeft(next));
@@ -91,6 +108,14 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
 
   return (
     <>
+      {showAdOverlay && (
+        <AdOverlay
+          seconds={15}
+          rewardLabel="هدية يومية 🎁"
+          onClaim={handleAdClaim}
+          onClose={handleAdClose}
+        />
+      )}
 
       <div className="flex flex-col items-center gap-3">
         {/* 3D Gift Box */}
@@ -177,6 +202,7 @@ export default function DailyGiftBox({ telegramId, initData, lang, onClaim }: Da
               <p className="text-xs font-black text-yellow-400" style={{ animation: "giftPulse 1.5s ease-in-out infinite" }}>
                 {t.daily_gift_ready}
               </p>
+              <p className="text-[10px] text-gray-500">شاهد إعلاناً للحصول على الهدية</p>
             </div>
           ) : (
             <>
