@@ -4,6 +4,7 @@ import { Gift, Sparkles, Tv2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 import { translations, type Language } from "@/lib/i18n";
+import AdOverlay from "./AdOverlay";
 
 interface UserData {
   telegramId: number;
@@ -52,11 +53,6 @@ function bumpAdSpins() {
   } catch {}
 }
 
-function triggerMonetagAd() {
-  const fn = (window as any)["show_10996226"];
-  if (typeof fn === "function") { try { fn(); } catch {} }
-}
-
 function getAudioCtx(): AudioContext | null {
   try { return new (window.AudioContext || (window as any).webkitAudioContext)(); } catch { return null; }
 }
@@ -91,12 +87,12 @@ function playWinSound(ctx: AudioContext) {
 export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSectionProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const audioCtxRef  = useRef<AudioContext | null>(null);
-  const adTimerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isSpinning,  setIsSpinning]  = useState(false);
   const [rotation,    setRotation]    = useState(0);
   const [adLoading,   setAdLoading]   = useState(false);
-  const [adCountdown, setAdCountdown] = useState(0);
   const [adSpinsUsed, setAdSpinsUsed] = useState(0);
+  const [showAdOverlay, setShowAdOverlay] = useState(false);
+  const [pendingToken,  setPendingToken]  = useState<string | null>(null);
   const { toast } = useToast();
   const t = translations[lang];
 
@@ -151,48 +147,39 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     try {
       const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
       if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
-
-      const token = tok.token;
-
-      // Show Monetag native ad
-      triggerMonetagAd();
-
-      // Start 16s countdown
-      let secs = 16;
-      setAdCountdown(secs);
-      setAdLoading(false);
-
-      adTimerRef.current = setInterval(() => {
-        secs -= 1;
-        setAdCountdown(secs);
-        if (secs <= 0) {
-          clearInterval(adTimerRef.current!);
-          setAdCountdown(0);
-          claimMutation.mutateAsync({
-            telegramId: user.telegramId,
-            token,
-            initData,
-            type: "spin",
-          }).then(cl => {
-            if (cl.success) {
-              bumpAdSpins();
-              setAdSpinsUsed(getAdSpinsUsed());
-              const newBal   = cl.balance   !== undefined ? Number(cl.balance)   : user.balance + 100;
-              const newSpins = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
-              onReward({ balance: newBal, spinsLeft: newSpins });
-              toast({ title: "🎡 دورة جاهزة!", description: "اضغط GO في العجلة الآن للعب!" });
-            } else {
-              toast({ title: "خطأ", description: cl.message || "فشل", variant: "destructive" });
-            }
-          }).catch(() => {
-            toast({ title: "خطأ", description: "فشل الحصول على الدورة", variant: "destructive" });
-          });
-        }
-      }, 1000);
+      setPendingToken(tok.token);
+      setShowAdOverlay(true);
     } catch (e: any) {
-      setAdLoading(false);
       toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
+    } finally {
+      setAdLoading(false);
     }
+  }
+
+  async function handleAdClaim() {
+    if (!pendingToken) return;
+    const initData = (window as any).Telegram?.WebApp?.initData || "";
+    const cl = await claimMutation.mutateAsync({
+      telegramId: user.telegramId,
+      token: pendingToken,
+      initData,
+      type: "spin",
+    });
+    if (cl.success) {
+      bumpAdSpins();
+      setAdSpinsUsed(getAdSpinsUsed());
+      const newBal   = cl.balance   !== undefined ? Number(cl.balance)   : user.balance + 100;
+      const newSpins = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
+      onReward({ balance: newBal, spinsLeft: newSpins });
+      setShowAdOverlay(false); setPendingToken(null); toast({ title: "🎡 دورة جاهزة!", description: "اضغط على زر GO في العجلة الآن للعب!" });
+    } else {
+      toast({ title: "خطأ", description: cl.message || "فشل الحصول على الدورة", variant: "destructive" });
+    }
+  }
+
+  function handleAdClose() {
+    setShowAdOverlay(false);
+    setPendingToken(null);
   }
 
   async function handleSpin() {
@@ -239,128 +226,129 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     }
   }
 
-  const adSpinsLeft  = MAX_AD_SPINS - adSpinsUsed;
-  const isWatchingAd = adCountdown > 0;
+  const adSpinsLeft = MAX_AD_SPINS - adSpinsUsed;
 
   return (
-    <Card className="bg-gradient-to-b from-slate-900/80 to-slate-950 border-slate-700/50 shadow-xl overflow-hidden">
-      <CardHeader className="border-b border-slate-800/50 bg-slate-900/30">
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <Gift className="h-5 w-5 text-purple-400" />
+    <>
+      {showAdOverlay && (
+        <AdOverlay
+          seconds={15}
+          rewardLabel="دورة مجانية 🎡"
+          onClaim={handleAdClaim}
+          onClose={handleAdClose}
+        />
+      )}
+
+      <Card className="bg-gradient-to-b from-slate-900/80 to-slate-950 border-slate-700/50 shadow-xl overflow-hidden">
+        <CardHeader className="border-b border-slate-800/50 bg-slate-900/30">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Gift className="h-5 w-5 text-purple-400" />
+              </div>
+              <span className="text-lg font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                {t.spin_title}
+              </span>
             </div>
-            <span className="text-lg font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              {t.spin_title}
-            </span>
-          </div>
-          <div className="flex items-center gap-1 px-3 py-1 bg-slate-800/50 rounded-full border border-slate-700/50">
-            <Sparkles className="h-3 w-3 text-yellow-400" />
-            <span className="text-xs font-medium text-yellow-400">{t.big_prizes}</span>
-          </div>
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="pt-8 pb-6 space-y-6">
-        {/* Wheel */}
-        <div className="relative flex justify-center items-center">
-          <div className="absolute w-64 h-64 bg-purple-600/10 rounded-full blur-3xl" />
-          <canvas
-            ref={canvasRef}
-            width={320} height={320}
-            onClick={!isSpinning && user.spinsLeft > 0 ? handleSpin : undefined}
-            className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && user.spinsLeft > 0 ? "hover:scale-105" : ""}`}
-          />
-          {!isSpinning && user.spinsLeft > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-              <div className="animate-ping absolute h-16 w-16 rounded-full bg-yellow-400/20" />
+            <div className="flex items-center gap-1 px-3 py-1 bg-slate-800/50 rounded-full border border-slate-700/50">
+              <Sparkles className="h-3 w-3 text-yellow-400" />
+              <span className="text-xs font-medium text-yellow-400">{t.big_prizes}</span>
             </div>
-          )}
-        </div>
+          </CardTitle>
+        </CardHeader>
 
-        {/* Spins indicator */}
-        <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm text-gray-400">{t.remaining_tries}</span>
-            <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 5</span>
+        <CardContent className="pt-8 pb-6 space-y-6">
+          {/* Wheel */}
+          <div className="relative flex justify-center items-center">
+            <div className="absolute w-64 h-64 bg-purple-600/10 rounded-full blur-3xl" />
+            <canvas
+              ref={canvasRef}
+              width={320} height={320}
+              onClick={!isSpinning && user.spinsLeft > 0 ? handleSpin : undefined}
+              className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && user.spinsLeft > 0 ? "hover:scale-105" : ""}`}
+            />
+            {!isSpinning && user.spinsLeft > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                <div className="animate-ping absolute h-16 w-16 rounded-full bg-yellow-400/20" />
+              </div>
+            )}
           </div>
-          <div className="flex gap-2 justify-center">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < user.spinsLeft ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]" : "bg-slate-800"}`} />
-            ))}
-          </div>
-        </div>
 
-        {/* Spin / Watch Ad button */}
-        {user.spinsLeft > 0 ? (
-          <>
-            <button
-              onClick={handleSpin}
-              disabled={isSpinning}
-              className="w-full h-14 text-lg font-black transition-all duration-300 rounded-xl"
-              style={{
-                background: "linear-gradient(135deg,#eab308,#ca8a04,#eab308)",
-                color: "#0f172a",
-                boxShadow: "0 4px 15px rgba(234,179,8,0.3)",
-                border: "none", cursor: isSpinning ? "not-allowed" : "pointer",
-                opacity: isSpinning ? 0.7 : 1,
-              }}
-            >
-              {isSpinning ? t.spinning : t.spin_btn}
-            </button>
-            <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
-              {t.daily_spins_info}
-            </p>
-          </>
-        ) : (
-          <div className="space-y-3">
-            <div className="bg-slate-800/60 border border-purple-700/40 rounded-xl p-4 text-center space-y-1">
-              <p className="text-yellow-400 font-bold text-sm">{t.no_spins_left}</p>
-              <p className="text-gray-400 text-xs">{t.watch_ad_for_spin_desc}</p>
-              {adSpinsLeft > 0 && (
-                <p className="text-purple-400 text-xs font-bold">
-                  {adSpinsLeft}/{MAX_AD_SPINS} {lang === "ar" ? "إعلان متبقي اليوم" : lang === "ru" ? "реклама осталась" : "ads left today"}
-                </p>
-              )}
+          {/* Spins indicator */}
+          <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-sm text-gray-400">{t.remaining_tries}</span>
+              <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 5</span>
             </div>
+            <div className="flex gap-2 justify-center">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < user.spinsLeft ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]" : "bg-slate-800"}`} />
+              ))}
+            </div>
+          </div>
 
-            {adSpinsLeft > 0 ? (
+          {/* Spin / Watch Ad button */}
+          {user.spinsLeft > 0 ? (
+            <>
               <button
-                onClick={handleWatchSpinAd}
-                disabled={adLoading || isWatchingAd}
-                className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
+                onClick={handleSpin}
+                disabled={isSpinning}
+                className="w-full h-14 text-lg font-black transition-all duration-300 rounded-xl"
                 style={{
-                  background: isWatchingAd
-                    ? "linear-gradient(135deg,#16a34a,#15803d)"
-                    : "linear-gradient(135deg,#7c3aed,#4f46e5)",
-                  color: "#fff",
-                  boxShadow: isWatchingAd ? "0 4px 20px rgba(22,163,74,0.4)" : "0 4px 20px rgba(139,92,246,0.4)",
-                  border: "none",
-                  cursor: adLoading || isWatchingAd ? "not-allowed" : "pointer",
-                  opacity: adLoading ? 0.7 : 1,
+                  background: "linear-gradient(135deg,#eab308,#ca8a04,#eab308)",
+                  color: "#0f172a",
+                  boxShadow: "0 4px 15px rgba(234,179,8,0.3)",
+                  border: "none", cursor: isSpinning ? "not-allowed" : "pointer",
+                  opacity: isSpinning ? 0.7 : 1,
                 }}
               >
-                {adLoading ? (
-                  <div style={{ width: 20, height: 20, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                ) : isWatchingAd ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12 }}>{adCountdown}</div>
-                    <span>جاري مشاهدة الإعلان...</span>
-                  </div>
-                ) : (
-                  <><Tv2 className="h-5 w-5" /><span>{t.watch_ad_earn_spin}</span></>
-                )}
+                {isSpinning ? t.spinning : t.spin_btn}
               </button>
-            ) : (
-              <div className="text-center py-3 text-xs text-gray-500">{t.daily_renewal}</div>
-            )}
+              <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
+                {t.daily_spins_info}
+              </p>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-slate-800/60 border border-purple-700/40 rounded-xl p-4 text-center space-y-1">
+                <p className="text-yellow-400 font-bold text-sm">{t.no_spins_left}</p>
+                <p className="text-gray-400 text-xs">{t.watch_ad_for_spin_desc}</p>
+                {adSpinsLeft > 0 && (
+                  <p className="text-purple-400 text-xs font-bold">
+                    {adSpinsLeft}/{MAX_AD_SPINS} {lang === "ar" ? "إعلان متبقي اليوم" : lang === "ru" ? "реклама осталась" : "ads left today"}
+                  </p>
+                )}
+              </div>
 
-            <p className="text-[10px] text-gray-500 text-center tracking-widest font-bold">
-              {t.daily_renewal}
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              {adSpinsLeft > 0 ? (
+                <button
+                  onClick={handleWatchSpinAd} disabled={adLoading}
+                  className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
+                  style={{
+                    background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                    color: "#fff",
+                    boxShadow: "0 4px 20px rgba(139,92,246,0.4)",
+                    border: "none", cursor: adLoading ? "not-allowed" : "pointer",
+                    opacity: adLoading ? 0.7 : 1,
+                  }}
+                >
+                  {adLoading
+                    ? <div style={{ width: 20, height: 20, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    : <Tv2 className="h-5 w-5" />
+                  }
+                  {adLoading ? "جاري التحميل..." : t.watch_ad_earn_spin}
+                </button>
+              ) : (
+                <div className="text-center py-3 text-xs text-gray-500">{t.daily_renewal}</div>
+              )}
+
+              <p className="text-[10px] text-gray-500 text-center tracking-widest font-bold">
+                {t.daily_renewal}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }
