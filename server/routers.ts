@@ -191,8 +191,8 @@ export const appRouter = router({
           success: true,
           user: {
             ...user,
-            adReward: 100,
-            adCooldown: 30,
+            adReward: await getSetting("adReward", 10),
+            adCooldown: await getSetting("adCooldown", 30),
             starsRate,
             minWithdraw,
             adsgramBlockId: ENV.adsgramBlockId,
