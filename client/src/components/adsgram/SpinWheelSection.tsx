@@ -87,11 +87,13 @@ function playWinSound(ctx: AudioContext) {
 export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSectionProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const audioCtxRef  = useRef<AudioContext | null>(null);
-  const [isSpinning,      setIsSpinning]      = useState(false);
-  const [rotation,        setRotation]        = useState(0);
-  const [adSpinsUsed,     setAdSpinsUsed]     = useState(0);
-  const [showNoSpinsModal, setShowNoSpinsModal] = useState(false);
-  const [showAdOverlay,   setShowAdOverlay]   = useState(false);
+  const [isSpinning,        setIsSpinning]        = useState(false);
+  const [rotation,          setRotation]          = useState(0);
+  const [adSpinsUsed,       setAdSpinsUsed]       = useState(0);
+  const [showNoSpinsModal,  setShowNoSpinsModal]  = useState(false);
+  const [showAdOverlay,     setShowAdOverlay]     = useState(false);
+  const [pendingToken,      setPendingToken]      = useState<string | null>(null);
+  const [tokenLoading,      setTokenLoading]      = useState(false);
   const { toast } = useToast();
   const t = translations[lang];
 
@@ -147,17 +149,28 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke();
   }
 
-  const handleWatchSpinAdClick = () => {
+  // FIX: Create token BEFORE showing overlay so tokenAge ≥ 15s when user claims
+  const handleWatchSpinAdClick = async () => {
     setShowNoSpinsModal(false);
-    setShowAdOverlay(true);
+    setTokenLoading(true);
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData || "";
+      const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
+      if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
+      setPendingToken(tok.token);
+      setShowAdOverlay(true);
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e?.message || "فشل تحميل الإعلان", variant: "destructive" });
+    } finally {
+      setTokenLoading(false);
+    }
   };
 
   const handleAdClaim = async () => {
+    if (!pendingToken) return;
     const initData = (window as any).Telegram?.WebApp?.initData || "";
     try {
-      const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
-      if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
-      const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
+      const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: pendingToken, initData, type: "spin" });
       if (cl.success) {
         bumpAdSpins();
         setAdSpinsUsed(getAdSpinsUsed());
@@ -170,6 +183,8 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
       }
     } catch (e: any) {
       toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
+    } finally {
+      setPendingToken(null);
     }
   };
 
@@ -229,7 +244,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
           seconds={15}
           rewardLabel="دورة إضافية 🎡"
           onClaim={handleAdClaim}
-          onClose={() => setShowAdOverlay(false)}
+          onClose={() => { setShowAdOverlay(false); setPendingToken(null); }}
         />
       )}
 
@@ -279,18 +294,18 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
 
             <button
               onClick={handleWatchSpinAdClick}
-              disabled={adSpinsLeft <= 0}
+              disabled={adSpinsLeft <= 0 || tokenLoading}
               style={{
                 width: "100%", height: 56, borderRadius: 18, border: "none",
-                background: adSpinsLeft > 0 ? "linear-gradient(135deg, #7c3aed, #EC4899)" : "rgba(255,255,255,0.08)",
+                background: adSpinsLeft > 0 && !tokenLoading ? "linear-gradient(135deg, #7c3aed, #EC4899)" : "rgba(255,255,255,0.08)",
                 color: "#fff", fontSize: 16, fontWeight: 900,
-                cursor: adSpinsLeft > 0 ? "pointer" : "not-allowed",
+                cursor: adSpinsLeft > 0 && !tokenLoading ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                boxShadow: adSpinsLeft > 0 ? "0 6px 24px rgba(139,92,246,0.45)" : "none",
+                boxShadow: adSpinsLeft > 0 && !tokenLoading ? "0 6px 24px rgba(139,92,246,0.45)" : "none",
               }}
             >
               <Tv2 size={20} />
-              {adSpinsLeft > 0 ? "شاهد إعلاناً واربح دورة 🎡" : "انتهت الإعلانات اليومية"}
+              {tokenLoading ? "جاري التحميل..." : adSpinsLeft > 0 ? "شاهد إعلاناً واربح دورة 🎡" : "انتهت الإعلانات اليومية"}
             </button>
 
             <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 14 }}>
@@ -379,17 +394,17 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
               </div>
               <button
                 onClick={handleWatchSpinAdClick}
-                disabled={adSpinsLeft <= 0}
+                disabled={adSpinsLeft <= 0 || tokenLoading}
                 className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
                 style={{
-                  background: adSpinsLeft > 0 ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "rgba(255,255,255,0.08)",
+                  background: adSpinsLeft > 0 && !tokenLoading ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "rgba(255,255,255,0.08)",
                   color: "#fff",
-                  boxShadow: adSpinsLeft > 0 ? "0 4px 20px rgba(139,92,246,0.4)" : "none",
-                  border: "none", cursor: adSpinsLeft > 0 ? "pointer" : "not-allowed",
+                  boxShadow: adSpinsLeft > 0 && !tokenLoading ? "0 4px 20px rgba(139,92,246,0.4)" : "none",
+                  border: "none", cursor: adSpinsLeft > 0 && !tokenLoading ? "pointer" : "not-allowed",
                 }}
               >
                 <Tv2 className="h-5 w-5" />
-                {adSpinsLeft > 0 ? t.watch_ad_earn_spin : "انتهت الإعلانات اليومية"}
+                {tokenLoading ? "جاري التحميل..." : adSpinsLeft > 0 ? t.watch_ad_earn_spin : "انتهت الإعلانات اليومية"}
               </button>
             </div>
           )}
