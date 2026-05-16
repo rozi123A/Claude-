@@ -62,6 +62,61 @@ async function startServer() {
     res.send(MONETAG_SW);
   });
 
+
+    // ── Ad view page — served inside Telegram's built-in browser ──
+    const AD_VIEW_HTML = `<!DOCTYPE html>
+  <html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+    <title>مشاهدة الإعلان</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{background:#0d1117;color:#fff;font-family:'Segoe UI',sans-serif;
+           display:flex;flex-direction:column;align-items:center;justify-content:center;
+           min-height:100vh;padding:24px;text-align:center}
+      .card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+            border-radius:20px;padding:28px 20px;max-width:380px;width:100%}
+      h2{font-size:18px;font-weight:800;margin-bottom:8px;color:#fff}
+      p{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:20px}
+      .badge{display:inline-block;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);
+             color:#34d399;border-radius:50px;padding:6px 18px;font-size:12px;font-weight:700;margin-bottom:20px}
+      .back-btn{display:inline-block;margin-top:24px;padding:14px 32px;border-radius:14px;
+                background:linear-gradient(135deg,#10b981,#059669);color:#fff;
+                font-weight:800;font-size:15px;text-decoration:none;border:none;cursor:pointer;width:100%}
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge">📺 ads by Monetag</div>
+      <h2>شاهد الإعلان واربح النقاط</h2>
+      <p>الإعلان يعرض أدناه — شاهده كاملاً ثم اضغط "عدت" للحصول على مكافأتك</p>
+
+      <!-- Monetag Interstitial Zone -->
+      <script async data-cfasync="false" src="//alwingulla.com/88/tag.min.js" data-zone="10996226" data-type="1"></script>
+
+      <script>
+        // Auto-trigger the interstitial once the script loads
+        window.addEventListener('load', function() {
+          if (typeof show_10996226 === 'function') {
+            show_10996226();
+          }
+        });
+      </script>
+
+      <button class="back-btn" onclick="window.close(); history.back();">
+        ✅ عدت — استلم مكافأتك
+      </button>
+    </div>
+  </body>
+  </html>`;
+
+    app.get("/ad-view", (_req, res) => {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      res.send(AD_VIEW_HTML);
+    });
+  
   registerStorageProxy(app);
   registerOAuthRoutes(app);
 
