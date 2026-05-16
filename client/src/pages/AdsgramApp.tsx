@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
     import WithdrawSection from "@/components/adsgram/WithdrawSection";
     import ReferralSection from "@/components/adsgram/ReferralSection";
     import DailyGiftBox from "@/components/adsgram/DailyGiftBox";
+import TasksSection from "@/components/adsgram/TasksSection";
     import LeaderboardSection from "@/components/adsgram/LeaderboardSection";
     import { useToast } from "@/hooks/use-toast";
     import { trpc } from "@/lib/trpc";
@@ -320,7 +321,14 @@ import { useState, useEffect, useCallback } from "react";
             )}
 
             {/* WITHDRAW TAB */}
-            {activeTab === "withdraw" && (
+            {activeTab === "tasks" && (
+                    <TasksSection
+                      user={{ telegramId: safeUser.telegramId, balance: safeUser.balance, initData: typeof window !== "undefined" && window.Telegram?.WebApp ? window.Telegram.WebApp.initData || "" : "" }}
+                      lang={lang}
+                      onReward={(u) => refreshUser(u)}
+                    />
+                  )}
+                  {activeTab === "withdraw" && (
               <div style={{ paddingTop: 6 }}>
                 <div style={{ marginBottom: 18 }}>
                   <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, color: "#10B981" }}>💸 {t.withdraw_title}</h2>
