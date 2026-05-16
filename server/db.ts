@@ -526,10 +526,34 @@ export async function initDb() {
 
   await client.end();
   console.log('[Database] Initialization complete');
+  // Seed permanent default tasks
+  await seedDefaultTasks();
 }
 
-  // ── Tasks ──────────────────────────────────────────────────────────────
-  import { tasks, userTasks, Task, InsertTask, UserTask } from "../drizzle/schema";
+  // ── Seed default permanent tasks ─────────────────────────────────────
+    async function seedDefaultTasks() {
+      const db = await getDb();
+      if (!db) return;
+      try {
+        const existing = await db.select().from(tasks).limit(1);
+        if (existing.length > 0) return;
+        const defaults = [
+          { name: "قناة المكافآت الرسمية",    description: "قناة التحديثات والأخبار الرسمية",   channelUsername: "@ads_reward123",       channelId: null, type: "channel" as const, pointsMin: 1, pointsMax: 10 },
+          { name: "مجتمع الأرباح العربي",     description: "انضم لمجتمعنا واكسب نقاطاً إضافية", channelUsername: "@arab_earn_community",  channelId: null, type: "channel" as const, pointsMin: 1, pointsMax: 10 },
+          { name: "بوت المكافآت",             description: "شغّل البوت واحصل على نقاط إضافية",  channelUsername: "@ads_reward123_bot",    channelId: null, type: "bot"     as const, pointsMin: 1, pointsMax: 10 },
+          { name: "قناة العروض والجوائز",     description: "تابع أحدث العروض والجوائز اليومية",  channelUsername: "@daily_rewards_ara",    channelId: null, type: "channel" as const, pointsMin: 1, pointsMax: 10 },
+        ];
+        for (const task of defaults) {
+          await db.insert(tasks).values(task).onConflictDoNothing();
+        }
+        console.log(`[Database] ✓ Seeded ${defaults.length} default tasks`);
+      } catch (err: any) {
+        console.error("[Database] seedDefaultTasks error:", err?.message);
+      }
+    }
+
+    // ── Tasks ──────────────────────────────────────────────────────────────
+    import { tasks, userTasks, Task, InsertTask, UserTask } from "../drizzle/schema";
 
   export async function getTasks(): Promise<Task[]> {
     const db = await getDb();
