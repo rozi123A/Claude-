@@ -4,7 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getTelegramUser, upsertTelegramUser, createTransaction, createWithdrawal, createAdToken, getAdToken, markAdTokenUsed, getSetting, getTransactions, getUserWithdrawals, updateWithdrawalStatus, getPendingWithdrawals, getReferralStats, getAdminStats, getAllTelegramUsersAdmin, getAllUsersForBroadcast, getInactiveUsers, banTelegramUser, getAllWithdrawals,
-  getLeaderboard } from "./db";
+  getLeaderboard, getTasks, getTaskById, completeUserTask, getUserTaskEntry, removeUserTask, getUserTasks, createTask, updateTask, deleteTask, getAllTasks } from "./db";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { ENV } from "./_core/env";
@@ -680,6 +680,171 @@ export const appRouter = router({
           return { success: true, sent, total: users.length };
         }),
     }),
+  
+
+      // ── Tasks Router ────────────────────────────────────────────────────
+      tasks: router({
+
+        // List all active tasks with completion status for user
+        list: publicProcedure
+          .input(z.object({ telegramId: z.number(), initData: z.string() }))
+          .query(async ({ input }) => {
+            const verified = verifyTelegramWebApp(input.initData);
+            if (!verified) return { success: false, tasks: [] };
+            const [allTasks, completedTasks] = await Promise.all([
+              getTasks(),
+              getUserTasks(input.telegramId),
+            ]);
+            const completedMap = new Map(completedTasks.map(ct => [ct.taskId, ct.pointsEarned]));
+            return {
+              success: true,
+              tasks: allTasks.map(t => ({
+                ...t,
+                completed: completedMap.has(t.id),
+                pointsEarned: completedMap.get(t.id) ?? null,
+              })),
+            };
+          }),
+
+        // Verify membership and award points
+        claim: publicProcedure
+          .input(z.object({ telegramId: z.number(), initData: z.string(), taskId: z.number() }))
+          .mutation(async ({ input }) => {
+            const verified = verifyTelegramWebApp(input.initData);
+            if (!verified) return { success: false, message: "غير مصرح" };
+
+            // Check if already completed
+            const existing = await getUserTaskEntry(input.telegramId, input.taskId);
+            if (existing) return { success: false, message: "أنجزت هذه المهمة مسبقاً" };
+
+            const task = await getTaskById(input.taskId);
+            if (!task || !task.isActive) return { success: false, message: "المهمة غير موجودة" };
+
+            const botToken = ENV.botToken;
+            if (!botToken) return { success: false, message: "إعداد البوت غير مكتمل" };
+
+            // Verify membership via Telegram API
+            const chatId = task.channelId || ('@' + task.channelUsername.replace('@', ''));
+            try {
+              const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(chatId)}&user_id=${input.telegramId}`);
+              const data = await res.json();
+              const status = data?.result?.status;
+              const isMember = ['member', 'administrator', 'creator'].includes(status);
+              if (!isMember) return { success: false, message: "لم يتم التحقق من انضمامك، اضغط انضم أولاً" };
+            } catch {
+              return { success: false, message: "تعذّر التحقق من العضوية، حاول مجدداً" };
+            }
+
+            // Award random points
+            const pts = Math.floor(Math.random() * (task.pointsMax - task.pointsMin + 1)) + task.pointsMin;
+            const user = await getTelegramUser(input.telegramId);
+            if (!user) return { success: false, message: "المستخدم غير موجود" };
+
+            await Promise.all([
+              completeUserTask(input.telegramId, input.taskId, pts),
+              upsertTelegramUser({ telegramId: input.telegramId, balance: (user.balance || 0) + pts, totalEarned: (user.totalEarned || 0) + pts }),
+              createTransaction({ telegramId: input.telegramId, type: "task", points: pts, metadata: JSON.stringify({ taskId: task.id, taskName: task.name }) }),
+            ]);
+
+            return { success: true, points: pts, message: `🎉 ربحت ${pts} نقطة!` };
+          }),
+
+        // Re-check membership (called when user opens tasks tab to detect leaves)
+        recheck: publicProcedure
+          .input(z.object({ telegramId: z.number(), initData: z.string() }))
+          .mutation(async ({ input }) => {
+            const verified = verifyTelegramWebApp(input.initData);
+            if (!verified) return { success: false, deducted: 0 };
+
+            const botToken = ENV.botToken;
+            if (!botToken) return { success: false, deducted: 0 };
+
+            const [completedTasks, allTasks] = await Promise.all([
+              getUserTasks(input.telegramId),
+              getTasks(),
+            ]);
+            if (!completedTasks.length) return { success: true, deducted: 0, left: [] };
+
+            const taskMap = new Map(allTasks.map(t => [t.id, t]));
+            let totalDeducted = 0;
+            const left: string[] = [];
+
+            for (const ct of completedTasks) {
+              const task = taskMap.get(ct.taskId);
+              if (!task) continue;
+              const chatId = task.channelId || ('@' + task.channelUsername.replace('@', ''));
+              try {
+                const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(chatId)}&user_id=${input.telegramId}`);
+                const data = await res.json();
+                const status = data?.result?.status;
+                const isMember = ['member', 'administrator', 'creator'].includes(status);
+                if (!isMember) {
+                  const pts = ct.pointsEarned;
+                  const user = await getTelegramUser(input.telegramId);
+                  if (user) {
+                    const newBal = Math.max(0, (user.balance || 0) - pts);
+                    await Promise.all([
+                      removeUserTask(input.telegramId, ct.taskId),
+                      upsertTelegramUser({ telegramId: input.telegramId, balance: newBal }),
+                      createTransaction({ telegramId: input.telegramId, type: "task_penalty", points: -pts, metadata: JSON.stringify({ taskId: task.id, taskName: task.name }) }),
+                    ]);
+                    totalDeducted += pts;
+                    left.push(task.name);
+                  }
+                }
+              } catch {}
+            }
+
+            return { success: true, deducted: totalDeducted, left };
+          }),
+
+        // Admin: add task
+        adminCreate: publicProcedure
+          .input(z.object({
+            secret: z.string(),
+            name: z.string().min(1),
+            description: z.string().optional(),
+            channelUsername: z.string().min(1),
+            channelId: z.string().optional(),
+            type: z.enum(["channel", "bot"]).default("channel"),
+            pointsMin: z.number().min(1).max(100).default(1),
+            pointsMax: z.number().min(1).max(100).default(10),
+          }))
+          .mutation(async ({ input }) => {
+            const adminSecret = process.env.ADMIN_SECRET || "";
+            if (!adminSecret || input.secret !== adminSecret) return { success: false };
+            const task = await createTask({
+              name: input.name,
+              description: input.description ?? null,
+              channelUsername: input.channelUsername,
+              channelId: input.channelId ?? null,
+              type: input.type,
+              pointsMin: input.pointsMin,
+              pointsMax: input.pointsMax,
+            });
+            return { success: true, task };
+          }),
+
+        // Admin: list all tasks
+        adminList: publicProcedure
+          .input(z.object({ secret: z.string() }))
+          .query(async ({ input }) => {
+            const adminSecret = process.env.ADMIN_SECRET || "";
+            if (!adminSecret || input.secret !== adminSecret) return { success: false, tasks: [] };
+            const list = await getAllTasks();
+            return { success: true, tasks: list };
+          }),
+
+        // Admin: delete task
+        adminDelete: publicProcedure
+          .input(z.object({ secret: z.string(), taskId: z.number() }))
+          .mutation(async ({ input }) => {
+            const adminSecret = process.env.ADMIN_SECRET || "";
+            if (!adminSecret || input.secret !== adminSecret) return { success: false };
+            await deleteTask(input.taskId);
+            return { success: true };
+          }),
+      }),
   
     leaderboard: router({
       get: publicProcedure
