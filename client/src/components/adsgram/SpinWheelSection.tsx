@@ -157,9 +157,19 @@ import { useState, useEffect, useRef } from "react";
         try {
           const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
           if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
-          const AdController = (window as any).Adsgram?.init({ blockId: user.adsgramBlockId });
-          if (!AdController) throw new Error("Adsgram SDK غير محمّل، حاول لاحقاً");
-          await AdController.show();
+          // Wait for Adsgram SDK up to 5 seconds
+          let _adsgram = (window as any).Adsgram;
+          if (!_adsgram) {
+            for (let i = 0; i < 50; i++) {
+              await new Promise(r => setTimeout(r, 100));
+              _adsgram = (window as any).Adsgram;
+              if (_adsgram) break;
+            }
+          }
+          if (!_adsgram || typeof _adsgram.init !== "function") {
+            throw new Error("تعذّر تحميل نظام الإعلانات، تحقق من اتصالك وأعد المحاولة");
+          }
+          await _adsgram.init({ blockId: user.adsgramBlockId }).show();
           const cl = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tok.token, initData, type: "spin" });
           if (cl.success) {
             bumpAdSpins();
