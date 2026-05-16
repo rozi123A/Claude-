@@ -58,9 +58,19 @@ import { useState, useEffect } from "react";
           const initData = (window as any).Telegram?.WebApp?.initData || "";
           const tokenData = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
           if (!tokenData.success || !tokenData.token) throw new Error(tokenData.message || t.ad_error_desc);
-          const AdController = (window as any).Adsgram?.init({ blockId: user.adsgramBlockId });
-          if (!AdController) throw new Error("Adsgram SDK غير محمّل، حاول لاحقاً");
-          await AdController.show();
+          // Wait for Adsgram SDK (up to 5 seconds)
+          let _adsgram = (window as any).Adsgram;
+          if (!_adsgram) {
+            for (let i = 0; i < 50; i++) {
+              await new Promise(r => setTimeout(r, 100));
+              _adsgram = (window as any).Adsgram;
+              if (_adsgram) break;
+            }
+          }
+          if (!_adsgram || typeof _adsgram.init !== "function") {
+            throw new Error("تعذّر تحميل نظام الإعلانات، تحقق من اتصالك وأعد المحاولة");
+          }
+          await _adsgram.init({ blockId: user.adsgramBlockId }).show();
           const claimData = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tokenData.token, initData, type: "points" });
           if (claimData.success) {
             const newBalance = Number(claimData.balance ?? user.balance + user.adReward);
