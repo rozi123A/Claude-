@@ -21,12 +21,14 @@ interface WatchAdsSectionProps {
 }
 
 export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectionProps) {
-  const [showAd, setShowAd] = useState(false);
+  const [showAd,            setShowAd]            = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [pendingToken,      setPendingToken]      = useState<string | null>(null);
+  const [tokenLoading,      setTokenLoading]      = useState(false);
   const { toast } = useToast();
   const t = translations[lang];
   const getTokenMutation = trpc.ads.getToken.useMutation();
-  const claimMutation = trpc.ads.claim.useMutation();
+  const claimMutation    = trpc.ads.claim.useMutation();
 
   useEffect(() => {
     if (user.lastAdTime) {
@@ -45,7 +47,8 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
     }
   }, [user.lastAdTime, user.adCooldown]);
 
-  const handleWatchAd = () => {
+  // FIX: Create token BEFORE showing overlay so tokenAge ≥ 15s when user claims
+  const handleWatchAd = async () => {
     if (user.todayAds >= 10) {
       toast({ title: t.notice, description: t.daily_ad_warning, variant: "destructive" });
       return;
@@ -54,15 +57,25 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
       toast({ title: t.notice, description: `${t.wait_before_next} ${Math.ceil(cooldownRemaining)} ${t.seconds}`, variant: "destructive" });
       return;
     }
-    setShowAd(true);
-  };
-
-  const handleClaim = async () => {
+    setTokenLoading(true);
     try {
       const initData = (window as any).Telegram?.WebApp?.initData || "";
       const tokenData = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
       if (!tokenData.success || !tokenData.token) throw new Error(tokenData.message || t.ad_error_desc);
-      const claimData = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: tokenData.token, initData, type: "points" });
+      setPendingToken(tokenData.token);
+      setShowAd(true);
+    } catch (e: any) {
+      toast({ title: t.ad_error || "خطأ", description: e?.message || t.ad_error_desc, variant: "destructive" });
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const handleClaim = async () => {
+    if (!pendingToken) return;
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData || "";
+      const claimData = await claimMutation.mutateAsync({ telegramId: user.telegramId, token: pendingToken, initData, type: "points" });
       if (claimData.success) {
         const newBalance = Number(claimData.balance ?? user.balance + user.adReward);
         toast({ title: "🎉 أحسنت!", description: `ربحت +${claimData.reward} ${t.points}` });
@@ -73,6 +86,8 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
       }
     } catch (error: any) {
       toast({ title: t.ad_error || "خطأ", description: error.message || t.ad_error_desc, variant: "destructive" });
+    } finally {
+      setPendingToken(null);
     }
   };
 
@@ -85,7 +100,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
           seconds={15}
           rewardLabel={`+${user.adReward} ${t.points}`}
           onClaim={handleClaim}
-          onClose={() => setShowAd(false)}
+          onClose={() => { setShowAd(false); setPendingToken(null); }}
         />
       )}
 
@@ -123,20 +138,20 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
 
         <button
           onClick={handleWatchAd}
-          disabled={!canWatch}
+          disabled={!canWatch || tokenLoading}
           style={{
             width: "100%", height: 64, borderRadius: 20, border: "none",
-            background: canWatch ? "linear-gradient(135deg, #F59E0B, #D97706)" : "rgba(255,255,255,0.05)",
-            color: canWatch ? "#fff" : "rgba(255,255,255,0.2)",
+            background: canWatch && !tokenLoading ? "linear-gradient(135deg, #F59E0B, #D97706)" : "rgba(255,255,255,0.05)",
+            color: canWatch && !tokenLoading ? "#fff" : "rgba(255,255,255,0.2)",
             fontWeight: 900, fontSize: 17,
-            cursor: canWatch ? "pointer" : "not-allowed",
+            cursor: canWatch && !tokenLoading ? "pointer" : "not-allowed",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
             transition: "all 0.3s",
-            boxShadow: canWatch ? "0 8px 32px rgba(245,158,11,0.35)" : "none",
+            boxShadow: canWatch && !tokenLoading ? "0 8px 32px rgba(245,158,11,0.35)" : "none",
           }}
         >
           <Play size={22} fill="currentColor" />
-          {cooldownRemaining > 0 ? `${t.wait} ${Math.ceil(cooldownRemaining)}${t.seconds}` : t.watch_ad}
+          {tokenLoading ? "جاري التحميل..." : cooldownRemaining > 0 ? `${t.wait} ${Math.ceil(cooldownRemaining)}${t.seconds}` : t.watch_ad}
         </button>
 
         <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "12px 16px" }}>
