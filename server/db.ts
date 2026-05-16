@@ -4,7 +4,7 @@ import { Pool } from "pg";
 import {
   InsertUser, users, telegramUsers, transactions, withdrawals,
   adTokens, settings, InsertTelegramUser, InsertTransaction,
-  InsertWithdrawal,
+  InsertWithdrawal, tasks, userTasks, type Task, type InsertTask, type UserTask,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -527,3 +527,73 @@ export async function initDb() {
   await client.end();
   console.log('[Database] Initialization complete');
 }
+
+  // ── Tasks ──────────────────────────────────────────────────────────────
+  import { tasks, userTasks, Task, InsertTask, UserTask } from "../drizzle/schema";
+
+  export async function getTasks(): Promise<Task[]> {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(tasks).where(eq(tasks.isActive, true)).orderBy(tasks.id);
+  }
+
+  export async function getTaskById(id: number): Promise<Task | null> {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
+    return rows[0] ?? null;
+  }
+
+  export async function createTask(data: InsertTask): Promise<Task> {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    const rows = await db.insert(tasks).values(data).returning();
+    return rows[0];
+  }
+
+  export async function updateTask(id: number, data: Partial<InsertTask>): Promise<void> {
+    const db = await getDb();
+    if (!db) return;
+    await db.update(tasks).set(data).where(eq(tasks.id, id));
+  }
+
+  export async function deleteTask(id: number): Promise<void> {
+    const db = await getDb();
+    if (!db) return;
+    await db.update(tasks).set({ isActive: false }).where(eq(tasks.id, id));
+  }
+
+  export async function getUserTasks(telegramId: number): Promise<UserTask[]> {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(userTasks).where(eq(userTasks.telegramId, telegramId));
+  }
+
+  export async function completeUserTask(telegramId: number, taskId: number, pointsEarned: number): Promise<void> {
+    const db = await getDb();
+    if (!db) return;
+    await db.insert(userTasks).values({ telegramId, taskId, pointsEarned });
+  }
+
+  export async function getUserTaskEntry(telegramId: number, taskId: number): Promise<UserTask | null> {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db.select().from(userTasks).where(and(eq(userTasks.telegramId, telegramId), eq(userTasks.taskId, taskId))).limit(1);
+    return rows[0] ?? null;
+  }
+
+  export async function removeUserTask(telegramId: number, taskId: number): Promise<number> {
+    const db = await getDb();
+    if (!db) return 0;
+    const entry = await getUserTaskEntry(telegramId, taskId);
+    if (!entry) return 0;
+    await db.delete(userTasks).where(and(eq(userTasks.telegramId, telegramId), eq(userTasks.taskId, taskId)));
+    return entry.pointsEarned;
+  }
+
+  export async function getAllTasks(): Promise<Task[]> {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(tasks).orderBy(tasks.id);
+  }
+  
