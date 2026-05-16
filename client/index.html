@@ -1,25 +1,85 @@
 <!doctype html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Start Coin✨ - Earn Stars</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-      <!-- Adsgram SDK -->
-      <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
-    <!-- Monetag Interstitial — triggered via show_10996226() -->
-    <script async="async" data-cfasync="false" src="//alwingulla.com/88/tag.min.js" data-zone="10996226" data-type="1"></script>
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Start Coin✨ - Earn Stars</title>
+  <meta name="description" content="تطبيق Start Coin لكسب نقاط Telegram Stars من خلال مشاهدة الإعلانات والعجلة والإحالات." />
+  <meta name="robots" content="index, follow" />
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js');
-      }
-    </script>
-  </body>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Monetag Interstitial — triggered via show_10996226() -->
+  <script async="async" data-cfasync="false" src="//alwingulla.com/88/tag.min.js" data-zone="10996226" data-type="1"></script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+
+  <!-- Privacy Policy & Terms (hidden, for ad network compliance) -->
+  <div id="legal-pages" style="display:none" aria-hidden="true">
+    <section id="privacy-policy">
+      <h1>Privacy Policy — Start Coin</h1>
+      <p>Last updated: 2025-01-01</p>
+      <p>Start Coin ("we", "our", "the app") is a Telegram Mini App that lets users earn points by watching ads and completing tasks.</p>
+      <h2>Data We Collect</h2>
+      <ul>
+        <li>Telegram user ID, first name, username (provided by Telegram)</li>
+        <li>Points balance and transaction history</li>
+        <li>Referral relationships</li>
+      </ul>
+      <h2>How We Use Data</h2>
+      <ul>
+        <li>To operate the reward system</li>
+        <li>To display leaderboards</li>
+        <li>To process withdrawal requests</li>
+      </ul>
+      <h2>Advertising</h2>
+      <p>We use Monetag to display advertisements. Monetag may collect anonymous usage data in accordance with their own privacy policy at monetag.com.</p>
+      <h2>Contact</h2>
+      <p>For questions, contact us via Telegram: @ads_reward123_bot</p>
+    </section>
+
+    <section id="terms-of-service">
+      <h1>Terms of Service — Start Coin</h1>
+      <p>By using Start Coin you agree to these terms.</p>
+      <h2>Earning Points</h2>
+      <ul>
+        <li>Points are earned by watching advertisements, spinning the wheel, completing tasks, and referring friends.</li>
+        <li>You must watch each ad completely to earn points.</li>
+        <li>Maximum 10 ads per day.</li>
+      </ul>
+      <h2>Withdrawals</h2>
+      <ul>
+        <li>Minimum withdrawal is 10,000 points.</li>
+        <li>Points are converted to Telegram Stars at the stated rate.</li>
+        <li>Withdrawals are processed manually within 48 hours.</li>
+      </ul>
+      <h2>Prohibited</h2>
+      <ul>
+        <li>Using bots, scripts, or automated tools to earn points.</li>
+        <li>Creating multiple accounts.</li>
+        <li>Any form of click fraud.</li>
+      </ul>
+      <h2>Termination</h2>
+      <p>We reserve the right to ban accounts that violate these terms without refund.</p>
+    </section>
+
+    <section id="about">
+      <h1>About Start Coin</h1>
+      <p>Start Coin is a legitimate Telegram Mini App where users earn real Telegram Stars by engaging with advertisements. Our platform connects advertisers with Telegram users in a transparent, rewarding ecosystem.</p>
+      <p>Features: Watch Ads · Spin Wheel · Daily Gift · Tasks · Referrals · Leaderboard · Withdraw Stars</p>
+    </section>
+  </div>
+</body>
 
 </html>
