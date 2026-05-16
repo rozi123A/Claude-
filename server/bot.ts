@@ -137,6 +137,40 @@ let isBotStarted = false;
     ctx.reply("استخدم الزر 'فتح التطبيق' للوصول إلى واجهة الكسب الخاصة بك.");
   });
 
+
+  // Detect when user leaves a channel (task deduction)
+  bot.on("chat_member", async (ctx) => {
+    try {
+      const update = (ctx.update as any).chat_member;
+      if (!update) return;
+      const wasActive = ["member","administrator","creator"].includes(update.old_chat_member?.status || "");
+      const nowLeft = ["left","kicked","banned"].includes(update.new_chat_member?.status || "");
+      if (!wasActive || !nowLeft) return;
+      const telegramId = update.from.id;
+      const chatId = String(update.chat.id);
+      const { getTasks, getUserTasks, removeUserTask, getTelegramUser, upsertTelegramUser, createTransaction } = await import("./db");
+      const [allTasks, userTasks] = await Promise.all([getTasks(), getUserTasks(telegramId)]);
+      for (const task of allTasks) {
+        if (task.channelId !== chatId) continue;
+        const ut = userTasks.find(u => u.taskId === task.id);
+        if (!ut) continue;
+        const dbUser = await getTelegramUser(telegramId);
+        if (!dbUser) continue;
+        const newBal = Math.max(0, (dbUser.balance || 0) - ut.pointsEarned);
+        await Promise.all([
+          removeUserTask(telegramId, task.id),
+          upsertTelegramUser({ telegramId, balance: newBal }),
+          createTransaction({ telegramId, type: "task_penalty", points: -ut.pointsEarned, metadata: JSON.stringify({ taskId: task.id }) }),
+        ]);
+        const webappUrl = process.env.WEBAPP_URL || "";
+        await ctx.telegram.sendMessage(telegramId,
+          `⚠️ غادرت ${task.name} وتم خصم ${ut.pointsEarned} نقطة من رصيدك!`,
+          webappUrl ? { reply_markup: { inline_keyboard: [[{ text: "🎮 افتح التطبيق", web_app: { url: webappUrl } }]] } } : {}
+        ).catch(() => {});
+      }
+    } catch (e) { console.error("[Bot] chat_member error:", e); }
+  });
+
   // CRITICAL: Cleanup any existing sessions
   try {
     console.log("[Bot] Clearing existing webhook/polling state to prevent 409...");
