@@ -155,7 +155,7 @@ let isBotStarted = false;
 
     try {
       app.use(bot.webhookCallback(secretPath));
-      await bot.telegram.setWebhook(webhookUrl, { drop_pending_updates: true });
+      await bot.telegram.setWebhook(webhookUrl, { drop_pending_updates: true, allowed_updates: ["message", "callback_query", "chat_member", "my_chat_member"] });
       console.log(`[Bot] ✅ Webhook mode ENABLED (Anti-409): ${webhookUrl}`);
       return;
     } catch (err) {
