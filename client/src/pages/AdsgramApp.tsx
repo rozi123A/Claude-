@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-    import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield, Trophy } from "lucide-react";
+    import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield, Trophy , CheckSquare} from "lucide-react";
     import { translations, type Language } from "@/lib/i18n";
     import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
     import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
@@ -153,14 +153,15 @@ import TasksSection from "@/components/adsgram/TasksSection";
         { id: "home", icon: Home, label: t.home, emoji: "🏠" },
         { id: "ads", icon: Play, label: t.ads, emoji: "📺" },
         { id: "spin", icon: Gift, label: t.spin, emoji: "🎡" },
-        { id: "friends", icon: Users, label: t.friends_title, emoji: "👥" },
+        { id: "tasks", icon: CheckSquare, label: lang === "en" ? "Tasks" : "مهام", emoji: "✅" },
+          { id: "friends", icon: Users, label: t.friends_title, emoji: "👥" },
         { id: "leaderboard", icon: Trophy, label: t.leaderboard, emoji: "🏆" },
         { id: "withdraw", icon: Wallet, label: t.withdraw, emoji: "💸" },
         ...(isAdmin ? [{ id: "admin", icon: Shield, label: "إدارة", emoji: "🛡️" }] : []),
       ];
 
       const tabAccent: Record<string, string> = {
-        home: "#8B5CF6", ads: "#F59E0B", spin: "#EC4899", friends: "#3B82F6", leaderboard: "#F59E0B", withdraw: "#10B981",
+        home: "#8B5CF6", ads: "#F59E0B", spin: "#EC4899", tasks: "#6366F1", friends: "#3B82F6", leaderboard: "#F59E0B", withdraw: "#10B981",
         admin: "#7C3AED"
       };
 
