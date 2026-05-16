@@ -33,7 +33,7 @@ services:
       - key: WEBAPP_URL
         sync: false
       - key: ADSGRAM_BLOCK_ID
-        value: "29281"
+        value: "30350"
       - key: AD_REWARD
         value: "100"
       - key: MIN_WITHDRAW
