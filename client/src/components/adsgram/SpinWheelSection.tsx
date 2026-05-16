@@ -155,7 +155,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     setTokenLoading(true);
     try {
       const initData = (window as any).Telegram?.WebApp?.initData || "";
-      const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData });
+      const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData, type: "spin" });
       if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
       setPendingToken(tok.token);
       setShowAdOverlay(true);

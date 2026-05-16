@@ -75,23 +75,22 @@ function toDateString(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-// Helper to reset daily limits
+// Helper to reset daily limits — uses UTC date strings for consistency
 function resetDailyIfNeeded(user: any) {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const todayStr = toDateString(new Date()); // "YYYY-MM-DD" in UTC
 
   const updates: any = {};
-  
-  const adDate = user.todayAdsDate ? new Date(user.todayAdsDate).getTime() : 0;
-  if (adDate < today) {
+
+  const adDate = user.todayAdsDate || "";
+  if (adDate < todayStr) {
     updates.todayAds = 0;
-    updates.todayAdsDate = toDateString(now);
+    updates.todayAdsDate = todayStr;
   }
 
-  const spinDate = user.spinsDate ? new Date(user.spinsDate).getTime() : 0;
-  if (spinDate < today) {
+  const spinDate = user.spinsDate || "";
+  if (spinDate < todayStr) {
     updates.spinsLeft = 5;
-    updates.spinsDate = toDateString(now);
+    updates.spinsDate = todayStr;
   }
 
   return updates;
@@ -215,7 +214,7 @@ export const appRouter = router({
 
   ads: router({
     getToken: publicProcedure
-      .input(z.object({ telegramId: z.number(), initData: z.string() }))
+      .input(z.object({ telegramId: z.number(), initData: z.string(), type: z.enum(["points", "spin"]).optional().default("points") }))
       .mutation(async ({ input }) => {
         const verified = verifyTelegramWebApp(input.initData);
         if (!verified || verified.id !== input.telegramId) return { success: false, message: "Invalid data" };
@@ -232,7 +231,8 @@ export const appRouter = router({
             return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
           }
         }
-        if (user.todayAds >= 10) return { success: false, message: "Daily limit reached" };
+        // Spin-type ads bypass the daily points-ad limit (they have their own 5/day limit on the client)
+        if (input.type !== "spin" && user.todayAds >= 10) return { success: false, message: "Daily limit reached" };
         if (!checkRateLimit(input.telegramId)) {
           return { success: false, message: "طلبات كثيرة جداً — انتظر دقيقة" };
         }
