@@ -1,4 +1,4 @@
-import { eq, and, desc, lt } from "drizzle-orm";
+import { eq, and, desc, lt, count, sum, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -329,22 +329,31 @@ export async function getAdminStats() {
   const db = await getDb();
   if (!db) return null;
   try {
-    const [usersResult, txResult, withdrawResult, bannedResult] = await Promise.all([
-      db.select().from(telegramUsers),
-      db.select().from(transactions),
-      db.select().from(withdrawals).where(eq(withdrawals.status, "pending")),
-      db.select().from(telegramUsers).where(eq(telegramUsers.isBanned, true)),
+    const [
+      [{ totalUsers }],
+      [{ bannedUsers }],
+      [{ pendingWithdrawals }],
+      [{ pendingStars }],
+      [{ totalTransactions }],
+      [{ totalAdViews }],
+      [{ totalSpins }],
+      [{ totalWithdrawals }],
+      [{ totalPointsDistributed }],
+    ] = await Promise.all([
+      db.select({ totalUsers: count() }).from(telegramUsers),
+      db.select({ bannedUsers: count() }).from(telegramUsers).where(eq(telegramUsers.isBanned, true)),
+      db.select({ pendingWithdrawals: count() }).from(withdrawals).where(eq(withdrawals.status, "pending")),
+      db.select({ pendingStars: sql<number>`coalesce(sum(stars), 0)` }).from(withdrawals).where(eq(withdrawals.status, "pending")),
+      db.select({ totalTransactions: count() }).from(transactions),
+      db.select({ totalAdViews: count() }).from(transactions).where(eq(transactions.type, "ad")),
+      db.select({ totalSpins: count() }).from(transactions).where(eq(transactions.type, "spin")),
+      db.select({ totalWithdrawals: count() }).from(transactions).where(eq(transactions.type, "withdraw")),
+      db.select({ totalPointsDistributed: sql<number>`coalesce(sum(points) filter (where points > 0), 0)` }).from(transactions),
     ]);
-    const totalPoints = txResult.filter((t: any) => t.points > 0).reduce((s: number, t: any) => s + Number(t.points), 0);
-    const adCount = txResult.filter((t: any) => t.type === "ad").length;
-    const spinCount = txResult.filter((t: any) => t.type === "spin").length;
-    const withdrawCount = txResult.filter((t: any) => t.type === "withdraw").length;
-    const pendingStars = withdrawResult.reduce((s: number, w: any) => s + Number(w.stars), 0);
     return {
-      totalUsers: usersResult.length, bannedUsers: bannedResult.length,
-      pendingWithdrawals: withdrawResult.length, pendingStars,
-      totalTransactions: txResult.length, totalPointsDistributed: totalPoints,
-      totalAdViews: adCount, totalSpins: spinCount, totalWithdrawals: withdrawCount,
+      totalUsers, bannedUsers, pendingWithdrawals, pendingStars,
+      totalTransactions, totalPointsDistributed,
+      totalAdViews, totalSpins, totalWithdrawals,
     };
   } catch (err) {
     console.error("[Database] getAdminStats failed:", err);

@@ -24,6 +24,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
       adCooldown: number;
       adsgramBlockId: string;
       lastAdTime: number | null;
+      isAdmin: boolean;
     }
 
     const DEFAULT_DEMO_USER: UserData = {
@@ -39,6 +40,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
       adCooldown: 30,
       adsgramBlockId: "",
       lastAdTime: null,
+      isAdmin: false,
     };
 
     function ActivityLog({ telegramId, lang }: { telegramId: number; lang: Language }) {
@@ -145,8 +147,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
       );
 
       const safeUser = user || DEFAULT_DEMO_USER;
-      const ADMIN_ID = 5279238199;
-      const isAdmin = safeUser.telegramId === ADMIN_ID;
+      const isAdmin = safeUser.isAdmin === true;
       const starsEquivalent = Math.floor(safeUser.balance / safeUser.starsRate);
 
       const NAV = [

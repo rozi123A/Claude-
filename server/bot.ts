@@ -113,10 +113,10 @@ let isBotStarted = false;
     }
   });
 
-  const ADMIN_TELEGRAM_ID = 5279238199;
+  const ADMIN_TELEGRAM_ID = Number(process.env.ADMIN_TELEGRAM_ID || "0");
 
     bot.command("admin", async (ctx) => {
-      if (ctx.from.id !== ADMIN_TELEGRAM_ID) {
+      if (!ADMIN_TELEGRAM_ID || ctx.from.id !== ADMIN_TELEGRAM_ID) {
         await ctx.reply("❌ هذا الأمر للمشرف فقط.");
         return;
       }

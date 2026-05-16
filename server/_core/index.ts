@@ -2,14 +2,12 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
-import { exec } from "child_process";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { getDb, initDb } from "../db";
 import { startBot } from "../bot";
-import { migrate } from "drizzle-orm/mysql2/migrator";
 import path from "path";
 import { fileURLToPath } from "url";
 

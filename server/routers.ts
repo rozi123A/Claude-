@@ -196,6 +196,7 @@ export const appRouter = router({
             minWithdraw,
             adsgramBlockId: ENV.adsgramBlockId,
             lastAdTime: user?.lastAdTime ? new Date(user.lastAdTime).getTime() : null,
+            isAdmin: ENV.adminTelegramId ? ENV.adminTelegramId === input.telegramId : false,
           },
         };
       }),
@@ -224,9 +225,8 @@ export const appRouter = router({
 
         // ── Anti-bot checks ──
         // Always allow admin to use ads (auto-unban if needed)
-        const ADMIN_IDS = [5279238199];
         if (user.isBanned === true) {
-          if (ADMIN_IDS.includes(input.telegramId)) {
+          if (ENV.adminTelegramId && ENV.adminTelegramId === input.telegramId) {
             await banTelegramUser(input.telegramId, false); // auto-unban admin
           } else {
             return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
@@ -542,10 +542,11 @@ export const appRouter = router({
         }
 
         // If rejected, restore user's balance
+        // Fetch withdrawal BEFORE updating its status so we can find it regardless of current status
         if (input.status === "rejected") {
-          const pendingList = await getPendingWithdrawals();
-          const w = pendingList.find((p: any) => p.id === input.withdrawalId);
-          if (w) {
+          const allW = await getAllWithdrawals();
+          const w = allW.find((p: any) => p.id === input.withdrawalId);
+          if (w && w.status === "pending") {
             const user = await getTelegramUser(w.telegramId);
             if (user) {
               await upsertTelegramUser({
