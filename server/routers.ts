@@ -83,8 +83,12 @@ function resetDailyIfNeeded(user: any) {
 
   const adDate = user.todayAdsDate || "";
   if (adDate < todayStr) {
+    // New day — reset counter
     updates.todayAds = 0;
     updates.todayAdsDate = todayStr;
+  } else if (Number(user.todayAds) > 10) {
+    // Same day but value corrupted (accumulated from old reset bug) — cap it
+    updates.todayAds = 10;
   }
 
   const spinDate = user.spinsDate || "";

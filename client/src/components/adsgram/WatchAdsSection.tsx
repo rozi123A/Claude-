@@ -111,7 +111,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
               {t.today_ads}
             </p>
             <p style={{ fontSize: 28, fontWeight: 900, color: "#F59E0B", lineHeight: 1 }}>
-              {user.todayAds}<span style={{ fontSize: 13, color: "rgba(245,158,11,0.4)", marginLeft: 4 }}>/10</span>
+              {Math.min(user.todayAds, 10)}<span style={{ fontSize: 13, color: "rgba(245,158,11,0.4)", marginLeft: 4 }}>/10</span>
             </p>
           </div>
           <div style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 18, padding: "14px 16px" }}>
