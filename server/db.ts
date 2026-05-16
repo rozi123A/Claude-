@@ -512,10 +512,36 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT NOW() NOT NULL,
         updated_at TIMESTAMP DEFAULT NOW() NOT NULL
       )`
-    },
-  ];
+      },
+      {
+        name: 'tasks',
+        sql: `CREATE TABLE IF NOT EXISTS tasks (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          channel_username VARCHAR(100) NOT NULL DEFAULT '',
+          channel_id VARCHAR(100),
+          type VARCHAR(20) NOT NULL DEFAULT 'channel',
+          points_min INTEGER NOT NULL DEFAULT 1,
+          points_max INTEGER NOT NULL DEFAULT 10,
+          is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW() NOT NULL
+        )`
+      },
+      {
+        name: 'user_tasks',
+        sql: `CREATE TABLE IF NOT EXISTS user_tasks (
+          id SERIAL PRIMARY KEY,
+          telegram_id BIGINT NOT NULL,
+          task_id INTEGER NOT NULL,
+          points_earned INTEGER NOT NULL,
+          completed_at TIMESTAMP DEFAULT NOW() NOT NULL,
+          UNIQUE(telegram_id, task_id)
+        )`
+      },
+    ];
 
-  for (const table of tables) {
+    for (const table of tables) {
     try {
       await client.query(table.sql);
       console.log(`[Database] ✓ Table ready: ${table.name}`);
