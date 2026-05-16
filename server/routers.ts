@@ -11,7 +11,7 @@ import { ENV } from "./_core/env";
 
 // ── Anti-bot: in-memory rate limiter ──
 const tokenRateMap = new Map();
-const MIN_AD_SECONDS = 14;
+const MIN_AD_SECONDS = 10;
 const INSTANT_BAN_SECONDS = 5;
 const RATE_WINDOW_MS = 120_000;
 const MAX_TOKENS_PER_MIN = 3;
