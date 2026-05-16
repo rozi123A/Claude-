@@ -90,3 +90,31 @@ export const settings = pgTable("settings", {
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = typeof settings.$inferInsert;
+
+  export const tasks = pgTable("tasks", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    channelUsername: varchar("channel_username", { length: 255 }).notNull(),
+    channelId: varchar("channel_id", { length: 100 }),
+    type: varchar("type", { length: 20 }).default("channel").notNull(),
+    pointsMin: integer("points_min").default(1).notNull(),
+    pointsMax: integer("points_max").default(10).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  });
+
+  export type Task = typeof tasks.$inferSelect;
+  export type InsertTask = typeof tasks.$inferInsert;
+
+  export const userTasks = pgTable("user_tasks", {
+    id: serial("id").primaryKey(),
+    telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
+    taskId: integer("task_id").notNull(),
+    pointsEarned: integer("points_earned").notNull(),
+    completedAt: timestamp("completed_at").defaultNow().notNull(),
+  });
+
+  export type UserTask = typeof userTasks.$inferSelect;
+  export type InsertUserTask = typeof userTasks.$inferInsert;
+  
