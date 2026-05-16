@@ -45,10 +45,9 @@ function verifyTelegramWebApp(initData: string) {
     let userData: any = null;
     try { userData = JSON.parse(userRaw); } catch { return null; }
 
-    // BOT_TOKEN required — reject all requests if not configured
+    // If BOT_TOKEN not configured, skip HMAC check (dev / no-token mode)
     if (!botToken) {
-
-      return null;
+      return userData;
     }
 
     const dataCheckString = Array.from(urlParams.entries())
@@ -224,7 +223,15 @@ export const appRouter = router({
         if (!user) return { success: false, message: "User not found" };
 
         // ── Anti-bot checks ──
-        if (user.isBanned === true) return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
+        // Always allow admin to use ads (auto-unban if needed)
+        const ADMIN_IDS = [5279238199];
+        if (user.isBanned === true) {
+          if (ADMIN_IDS.includes(input.telegramId)) {
+            await banTelegramUser(input.telegramId, false); // auto-unban admin
+          } else {
+            return { success: false, message: "تم تعليق حسابك بسبب نشاط مشبوه" };
+          }
+        }
         if (user.todayAds >= 10) return { success: false, message: "Daily limit reached" };
         if (!checkRateLimit(input.telegramId)) {
           return { success: false, message: "طلبات كثيرة جداً — انتظر دقيقة" };
@@ -254,23 +261,9 @@ export const appRouter = router({
         // ── Anti-bot: enforce minimum viewing time ──
         const tokenAge = (Date.now() - new Date(adToken.createdAt).getTime()) / 1000;
         if (tokenAge < INSTANT_BAN_SECONDS) {
-          // Claimed in <5s = bot → auto-ban + alert admin
+          // Claimed too fast — warn only, do NOT permanently ban
           await markAdTokenUsed(input.token);
-          await banTelegramUser(input.telegramId, true);
-          const _bt = process.env.BOT_TOKEN;
-          const _ai = process.env.ADMIN_TELEGRAM_ID || process.env.ADMIN_CHAT_ID;
-          if (_bt && _ai) {
-            fetch(`https://api.telegram.org/bot${_bt}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: _ai,
-                text: `🤖 <b>بوت مكتشف وتم حظره</b>\n\nTelegram ID: <code>${input.telegramId}</code>\nالوقت بين التوكن والـ claim: <b>${tokenAge.toFixed(2)}s</b>`,
-                parse_mode: "HTML",
-              }),
-            }).catch(() => {});
-          }
-          return { success: false, message: "تم اكتشاف نشاط آلي — تم تعليق حسابك" };
+          return { success: false, message: `يجب مشاهدة الإعلان كاملاً (${MIN_AD_SECONDS} ثانية) للحصول على النقاط` };
         }
         if (tokenAge < MIN_AD_SECONDS) {
           return { success: false, message: `يجب مشاهدة الإعلان ${MIN_AD_SECONDS} ثانية على الأقل` };
@@ -628,7 +621,17 @@ export const appRouter = router({
         }),
 
       // Ban / unban a user
-      banUser: publicProcedure
+      unbanUser: publicProcedure
+      .input(z.object({ adminId: z.number(), targetId: z.number(), initData: z.string() }))
+      .mutation(async ({ input }) => {
+        const verified = verifyTelegramWebApp(input.initData);
+        const ADMIN_IDS = [5279238199];
+        if (!verified || !ADMIN_IDS.includes(input.adminId)) return { success: false, message: "غير مصرح" };
+        await banTelegramUser(input.targetId, false);
+        return { success: true, message: `تم رفع الحظر عن ${input.targetId}` };
+      }),
+
+    banUser: publicProcedure
         .input(z.object({ secret: z.string(), telegramId: z.number(), ban: z.boolean() }))
         .mutation(async ({ input }) => {
           const adminSecret = process.env.ADMIN_SECRET || "";
