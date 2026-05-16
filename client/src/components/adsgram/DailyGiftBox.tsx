@@ -57,13 +57,21 @@ import { useState, useEffect, useRef } from "react";
       if (!canClaim || isOpening) return;
       setIsOpening(true);
       try {
-        const AdController = (window as any).Adsgram?.init({ blockId: adsgramBlockId });
-        if (!AdController) {
-          toast({ title: "خطأ", description: "Adsgram غير محمّل، حاول لاحقاً", variant: "destructive" });
+        // Wait for Adsgram SDK up to 5 seconds
+        let _adsgram = (window as any).Adsgram;
+        if (!_adsgram) {
+          for (let i = 0; i < 50; i++) {
+            await new Promise(r => setTimeout(r, 100));
+            _adsgram = (window as any).Adsgram;
+            if (_adsgram) break;
+          }
+        }
+        if (!_adsgram || typeof _adsgram.init !== "function") {
+          toast({ title: "خطأ", description: "تعذّر تحميل نظام الإعلانات، تحقق من اتصالك وأعد المحاولة", variant: "destructive" });
           setIsOpening(false);
           return;
         }
-        await AdController.show();
+        await _adsgram.init({ blockId: adsgramBlockId }).show();
         await handleClaim();
       } catch (e: any) {
         if (e?.type === "show") {
