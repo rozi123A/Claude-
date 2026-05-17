@@ -148,21 +148,11 @@ export const appRouter = router({
           if (input.referredBy && input.referredBy !== input.telegramId) {
             const inviter = await getTelegramUser(input.referredBy);
             if (inviter) {
-              // Inviter gets 100 points
-              const inviterBonus = 100;
-              await upsertTelegramUser({
-                ...inviter,
-                balance: Number(inviter.balance) + inviterBonus,
-                totalEarned: Number(inviter.totalEarned) + inviterBonus,
-              });
-              await createTransaction({
-                telegramId: input.referredBy,
-                type: "referral",
-                points: inviterBonus,
-                metadata: JSON.stringify({ referredId: input.telegramId, action: "friend_joined" }),
-              });
+              // NOTE: Inviter bonus is NOT credited automatically here.
+              // The inviter must press "استلم نقاط الإحالة المعلقة" to collect points.
+              // claimReferral mutation detects uncredited referrals and pays them on demand.
 
-              // Send Telegram notification to the inviter
+              // Send Telegram notification to the inviter (points pending, must claim)
               const botToken = ENV.botToken;
               const newUserName = verified.first_name
                 ? `${verified.first_name}${verified.last_name ? " " + verified.last_name : ""}`
@@ -171,8 +161,8 @@ export const appRouter = router({
                 const webappUrl = process.env.WEBAPP_URL || process.env.FRONTEND_URL || "";
                 const msg =
                   `🎉 *مبروك!* انضم ${newUserName} عبر رابطك!\n\n` +
-                  `💰 ربحت *${inviterBonus} نقطة* فوراً\n` +
-                  `👥 استمر في مشاركة الرابط لتربح أكثر!`;
+                  `🎁 لديك *100 نقطة* في انتظارك\n` +
+                  `👆 افتح التطبيق واضغط *"استلم نقاط الإحالة"* لتحصل عليها!`;
                 const body: any = {
                   chat_id: input.referredBy,
                   text: msg,
@@ -180,7 +170,7 @@ export const appRouter = router({
                 };
                 if (webappUrl) {
                   body.reply_markup = JSON.stringify({
-                    inline_keyboard: [[{ text: "📊 شاهد رصيدك", web_app: { url: webappUrl } }]],
+                    inline_keyboard: [[{ text: "🎁 استلم نقاطك الآن!", web_app: { url: webappUrl } }]],
                   });
                 }
                 fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
