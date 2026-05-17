@@ -743,18 +743,26 @@ export const appRouter = router({
 
               if (!data.ok) {
                 const desc: string = data.description ?? '';
+                if (desc.includes('user not found') || desc.includes('USER_ID_INVALID')) {
+                  // Telegram can't find the user — likely they haven't started the bot yet
+                  return { success: false, message: "تأكد أنك فتحت البوت أولاً وأرسلت له /start ثم حاول مجدداً" };
+                }
                 if (desc.includes('chat not found') || desc.includes('PEER_ID_INVALID')) {
                   return { success: false, message: "القناة غير موجودة أو البوت ليس عضواً فيها — تواصل مع المشرف" };
                 }
                 if (desc.includes('bot was kicked') || desc.includes('not enough rights')) {
-                  return { success: false, message: "البوت محتاج صلاحيات في القناة — تواصل مع المشرف" };
+                  return { success: false, message: "البوت يحتاج صلاحيات في القناة — تواصل مع المشرف" };
                 }
-                return { success: false, message: `خطأ من Telegram: ${desc}` };
+                if (desc.includes('member list is inaccessible')) {
+                  // Private channel — bot must be admin
+                  return { success: false, message: "القناة خاصة — يجب أن يكون البوت مشرفاً فيها" };
+                }
+                return { success: false, message: "تعذّر التحقق من العضوية، حاول مجدداً" };
               }
 
               const status = data?.result?.status;
               const isMember = ['member', 'administrator', 'creator'].includes(status);
-              if (!isMember) return { success: false, message: "لم يتم التحقق من انضمامك، اضغط انضم أولاً ثم حاول" };
+              if (!isMember) return { success: false, message: "لم يتم التحقق من انضمامك للقناة، انضم أولاً ثم اضغط تحقق" };
             } catch {
               return { success: false, message: "تعذّر التحقق من العضوية، حاول مجدداً" };
             }
