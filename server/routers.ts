@@ -214,6 +214,49 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return await getReferralStats(input.telegramId);
       }),
+
+    claimReferral: publicProcedure
+      .input(z.object({ telegramId: z.number(), initData: z.string() }))
+      .mutation(async ({ input }) => {
+        const verified = verifyTelegramWebApp(input.initData);
+        if (!verified || verified.id !== input.telegramId) return { success: false, claimed: 0, points: 0 };
+
+        const user = await getTelegramUser(input.telegramId);
+        if (!user) return { success: false, claimed: 0, points: 0 };
+
+        // Get all users referred by this user
+        const stats = await getReferralStats(input.telegramId);
+        const referredCount = stats.count;
+        if (referredCount === 0) return { success: true, claimed: 0, points: 0 };
+
+        // Count existing referral transactions for this user
+        const existingTxCount = Math.floor(stats.totalEarned / 100);
+
+        // How many referrals haven't been paid yet
+        const unpaidCount = Math.max(0, referredCount - existingTxCount);
+        if (unpaidCount === 0) return { success: true, claimed: 0, points: 0 };
+
+        // Pay missed referral bonuses
+        const bonusPerReferral = 100;
+        const totalBonus = unpaidCount * bonusPerReferral;
+
+        await upsertTelegramUser({
+          ...user,
+          balance: Number(user.balance) + totalBonus,
+          totalEarned: Number(user.totalEarned) + totalBonus,
+        });
+
+        for (let i = 0; i < unpaidCount; i++) {
+          await createTransaction({
+            telegramId: input.telegramId,
+            type: "referral",
+            points: bonusPerReferral,
+            metadata: JSON.stringify({ action: "claim_missed_referral", batch: true }),
+          });
+        }
+
+        return { success: true, claimed: unpaidCount, points: totalBonus };
+      }),
   }),
 
   ads: router({

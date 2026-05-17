@@ -85,6 +85,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
     export default function AdsgramApp() {
       const [user, setUser] = useState<UserData | null>(null);
       const [loading, setLoading] = useState(true);
+      const [errorType, setErrorType] = useState<null | "no_telegram" | "no_user">(null);
       const [activeTab, setActiveTab] = useState("home");
       const [lang, setLang] = useState<Language>("ar");
     const [displayName, setDisplayName] = useState("");
@@ -107,7 +108,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
             const initData = tg.initData;
             const telegramUser = tg.initDataUnsafe?.user;
             const startParam = tg.initDataUnsafe?.start_param;
-            if (!telegramUser) { setUser(DEFAULT_DEMO_USER); setLoading(false); return; }
+            if (!telegramUser) { setErrorType("no_user"); setLoading(false); return; }
             setDisplayName(telegramUser.first_name || telegramUser.username || "");
             try {
               const data = await getUserMutation.mutateAsync({
@@ -118,8 +119,8 @@ import TasksSection from "@/components/adsgram/TasksSection";
               if (data?.success && data.user) setUser(data.user as UserData);
               else setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
             } catch { setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id }); }
-          } else { setUser(DEFAULT_DEMO_USER); }
-        } catch { setUser(DEFAULT_DEMO_USER); }
+          } else { setErrorType("no_telegram"); }
+        } catch { setErrorType("no_telegram"); }
         finally { setLoading(false); }
       };
 
@@ -143,6 +144,33 @@ import TasksSection from "@/components/adsgram/TasksSection";
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>✨</div>
           </div>
           <p style={{ color: "rgba(139,92,246,0.8)", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em" }}>{t.loading}</p>
+        </div>
+      );
+
+      if (errorType === "no_telegram") return (
+        <div style={{ minHeight: "100vh", background: "#070711", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
+          <div style={{ fontSize: 64, marginBottom: 8 }}>📱</div>
+          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>افتح التطبيق من داخل Telegram</h2>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+            هذا التطبيق يعمل فقط كـ Mini App داخل Telegram.<br/>ابحث عن البوت وافتحه من هناك.
+          </p>
+        </div>
+      );
+
+      if (errorType === "no_user") return (
+        <div style={{ minHeight: "100vh", background: "#070711", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
+          <div style={{ fontSize: 64, marginBottom: 8 }}>🤖</div>
+          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>افتح البوت واضغط Start أولاً</h2>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+            يبدو أنك لم تبدأ البوت بعد.<br/>
+            افتح البوت في Telegram، اضغط <strong style={{ color: "#8B5CF6" }}>Start</strong>، ثم أعد فتح التطبيق.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 8, padding: "12px 32px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #8B5CF6, #6D28D9)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}
+          >
+            إعادة المحاولة
+          </button>
         </div>
       );
 
@@ -318,7 +346,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
                   <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, color: "#3B82F6" }}>👥 {t.friends_title}</h2>
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>{t.friends_subtitle}</p>
                 </div>
-                <ReferralSection user={safeUser} lang={lang} />
+                <ReferralSection user={safeUser} lang={lang} initData={typeof window !== "undefined" && window.Telegram?.WebApp ? window.Telegram.WebApp.initData || "" : ""} />
               </div>
             )}
 
