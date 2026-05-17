@@ -732,13 +732,29 @@ export const appRouter = router({
             if (!botToken) return { success: false, message: "إعداد البوت غير مكتمل" };
 
             // Verify membership via Telegram API
-            const chatId = task.channelId || ('@' + task.channelUsername.replace('@', ''));
+            const rawUsername = task.channelUsername?.replace('@', '').trim() ?? '';
+            const chatId = task.channelId || ('@' + rawUsername);
+            if (!rawUsername && !task.channelId) {
+              return { success: false, message: "إعداد المهمة غير صحيح، تواصل مع الدعم" };
+            }
             try {
               const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(chatId)}&user_id=${input.telegramId}`);
               const data = await res.json();
+
+              if (!data.ok) {
+                const desc: string = data.description ?? '';
+                if (desc.includes('chat not found') || desc.includes('PEER_ID_INVALID')) {
+                  return { success: false, message: "القناة غير موجودة أو البوت ليس عضواً فيها — تواصل مع المشرف" };
+                }
+                if (desc.includes('bot was kicked') || desc.includes('not enough rights')) {
+                  return { success: false, message: "البوت محتاج صلاحيات في القناة — تواصل مع المشرف" };
+                }
+                return { success: false, message: `خطأ من Telegram: ${desc}` };
+              }
+
               const status = data?.result?.status;
               const isMember = ['member', 'administrator', 'creator'].includes(status);
-              if (!isMember) return { success: false, message: "لم يتم التحقق من انضمامك، اضغط انضم أولاً" };
+              if (!isMember) return { success: false, message: "لم يتم التحقق من انضمامك، اضغط انضم أولاً ثم حاول" };
             } catch {
               return { success: false, message: "تعذّر التحقق من العضوية، حاول مجدداً" };
             }
@@ -780,10 +796,12 @@ export const appRouter = router({
             for (const ct of completedTasks) {
               const task = taskMap.get(ct.taskId);
               if (!task) continue;
-              const chatId = task.channelId || ('@' + task.channelUsername.replace('@', ''));
+              const chatId = task.channelId || ('@' + task.channelUsername.replace('@', '').trim());
               try {
                 const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(chatId)}&user_id=${input.telegramId}`);
                 const data = await res.json();
+                // If channel not found / bot not in channel, skip silently (don't penalize)
+                if (!data.ok) continue;
                 const status = data?.result?.status;
                 const isMember = ['member', 'administrator', 'creator'].includes(status);
                 if (!isMember) {
