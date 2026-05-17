@@ -162,6 +162,34 @@ export const appRouter = router({
                 metadata: JSON.stringify({ referredId: input.telegramId, action: "friend_joined" }),
               });
 
+              // Send Telegram notification to the inviter
+              const botToken = ENV.botToken;
+              const newUserName = verified.first_name
+                ? `${verified.first_name}${verified.last_name ? " " + verified.last_name : ""}`
+                : (verified.username ? `@${verified.username}` : "صديق جديد");
+              if (botToken) {
+                const webappUrl = process.env.WEBAPP_URL || process.env.FRONTEND_URL || "";
+                const msg =
+                  `🎉 *مبروك!* انضم ${newUserName} عبر رابطك!\n\n` +
+                  `💰 ربحت *${inviterBonus} نقطة* فوراً\n` +
+                  `👥 استمر في مشاركة الرابط لتربح أكثر!`;
+                const body: any = {
+                  chat_id: input.referredBy,
+                  text: msg,
+                  parse_mode: "Markdown",
+                };
+                if (webappUrl) {
+                  body.reply_markup = JSON.stringify({
+                    inline_keyboard: [[{ text: "📊 شاهد رصيدك", web_app: { url: webappUrl } }]],
+                  });
+                }
+                fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(body),
+                }).catch(() => {}); // fire-and-forget, don't block registration
+              }
+
               // New user also gets a 300-point welcome bonus
               const welcomeBonus = 300;
               await upsertTelegramUser({
