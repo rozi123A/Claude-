@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { showMonetagAd } from "@/lib/monetag";
 
 interface AdOverlayProps {
   seconds?: number;
@@ -9,16 +8,37 @@ interface AdOverlayProps {
 }
 
 export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose }: AdOverlayProps) {
-  const [timeLeft, setTimeLeft]   = useState(seconds);
-  const [claimed,  setClaimed]    = useState(false);
-  const [adShown,  setAdShown]    = useState(false);
+  const [timeLeft, setTimeLeft] = useState(seconds);
+  const [claimed,  setClaimed]  = useState(false);
+  const [adOpened, setAdOpened] = useState(false);
+  const [returned, setReturned] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const visRef   = useRef<(() => void) | null>(null);
+
+  const openAdPage = () => {
+    const tg = (window as any).Telegram?.WebApp;
+    const adUrl = `${window.location.origin}/ad-view`;
+    if (tg?.openLink) {
+      tg.openLink(adUrl, { try_instant_view: false });
+    } else {
+      window.open(adUrl, "_blank");
+    }
+  };
 
   useEffect(() => {
-    // Trigger the interstitial popup directly inside the Mini App
-    showMonetagAd().then(() => setAdShown(true));
+    openAdPage();
+    setAdOpened(true);
 
-    // Start countdown
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        setReturned(true);
+        document.removeEventListener("visibilitychange", onVisible);
+        visRef.current = null;
+      }
+    };
+    visRef.current = onVisible;
+    document.addEventListener("visibilitychange", onVisible);
+
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) { clearInterval(timerRef.current!); return 0; }
@@ -26,7 +46,10 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
       });
     }, 1000);
 
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (visRef.current) document.removeEventListener("visibilitychange", visRef.current);
+    };
   }, []);
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
@@ -40,8 +63,6 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
     setTimeout(() => onClose(), 400);
   };
 
-  const handleReshow = () => { showMonetagAd(); };
-
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9999,
@@ -50,11 +71,10 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
       fontFamily: "'Inter','Segoe UI',sans-serif",
       overflow: "hidden",
     }}>
-      {/* BG blobs */}
       <div style={{ position: "absolute", top: -60, right: -60, width: 200, height: 200, borderRadius: "50%", background: "rgba(99,102,241,0.08)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: -80, left: -60, width: 240, height: 240, borderRadius: "50%", background: "rgba(16,185,129,0.06)", pointerEvents: "none" }} />
 
-      {/* Countdown badge */}
+      {/* Countdown */}
       <div style={{
         marginTop: 36,
         background: timeLeft === 0
@@ -83,47 +103,65 @@ export default function AdOverlay({ seconds = 15, rewardLabel, onClaim, onClose 
         {/* Header */}
         <div style={{
           padding: "20px 20px 16px",
-          background: adShown
-            ? "linear-gradient(135deg,rgba(14,165,233,0.12),rgba(99,102,241,0.08))"
-            : "rgba(255,255,255,0.03)",
+          background: "linear-gradient(135deg,rgba(14,165,233,0.12),rgba(99,102,241,0.08))",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
           display: "flex", alignItems: "center", gap: 14,
         }}>
           <div style={{
             width: 48, height: 48, borderRadius: "50%", flexShrink: 0,
-            background: adShown ? "linear-gradient(135deg,#0ea5e9,#6366f1)" : "rgba(255,255,255,0.08)",
+            background: "linear-gradient(135deg,#0ea5e9,#6366f1)",
             display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24,
-            boxShadow: adShown ? "0 4px 16px rgba(14,165,233,0.4)" : "none",
-          }}>
-            {adShown ? "📺" : "⏳"}
-          </div>
+            boxShadow: "0 4px 16px rgba(14,165,233,0.4)",
+          }}>📺</div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 17, fontWeight: 900, color: "#fff", margin: 0 }}>
-              {adShown ? "الإعلان يعرض الآن" : "جاري تحميل الإعلان..."}
+              {returned ? "شكراً لمشاهدتك!" : "الإعلان مفتوح في Telegram"}
             </p>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "4px 0 0", lineHeight: 1.4 }}>
-              {canClaim ? "شاهدت الإعلان — استلم مكافأتك!" : "شاهد الإعلان كاملاً ثم اضغط استلم"}
+              {returned ? "انتظر انتهاء العداد ثم اضغط استلم" : "شاهد الإعلان كاملاً ثم ارجع هنا"}
             </p>
           </div>
         </div>
 
-        {/* Re-show button */}
-        {adShown && !canClaim && (
-          <div style={{ padding: "14px 20px 0" }}>
-            <button onClick={handleReshow} style={{
+        {/* Steps */}
+        <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { icon: "1️⃣", text: "الإعلان يفتح في متصفح Telegram", done: adOpened },
+            { icon: "2️⃣", text: "شاهد الإعلان كاملاً — انقر للحصول على المكافأة",  done: returned },
+            { icon: "3️⃣", text: "ارجع هنا واستلم مكافأتك",                          done: canClaim },
+          ].map((step, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 12,
+              background: step.done ? "rgba(22,163,74,0.08)" : "rgba(255,255,255,0.03)",
+              border: `1px solid ${step.done ? "rgba(74,222,128,0.2)" : "rgba(255,255,255,0.05)"}`,
+              borderRadius: 12, padding: "10px 14px", transition: "all 0.3s",
+            }}>
+              <span style={{ fontSize: 18 }}>{step.done ? "✅" : step.icon}</span>
+              <span style={{ fontSize: 13, fontWeight: step.done ? 700 : 400,
+                color: step.done ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.4)" }}>
+                {step.text}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Reopen */}
+        {!canClaim && (
+          <div style={{ padding: "0 20px 10px" }}>
+            <button onClick={openAdPage} style={{
               width: "100%", height: 44, borderRadius: 12,
               border: "1px solid rgba(14,165,233,0.3)",
               background: "rgba(14,165,233,0.08)", color: "rgba(14,165,233,0.9)",
               fontWeight: 700, fontSize: 13, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
-              📺 إعادة عرض الإعلان
+              ✈️ إعادة فتح الإعلان في Telegram
             </button>
           </div>
         )}
 
-        {/* Claim + skip */}
-        <div style={{ padding: "16px 20px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Claim + Skip */}
+        <div style={{ padding: "10px 20px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
           <button onClick={handleClaim} disabled={!canClaim} style={{
             width: "100%", height: 58, borderRadius: 16, border: "none",
             background: canClaim ? "linear-gradient(135deg,#16a34a,#15803d)" : "rgba(255,255,255,0.05)",

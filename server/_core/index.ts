@@ -46,87 +46,63 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
     // ── Ad view page — served inside Telegram's built-in browser ──
+    // The ad script runs inside a sandboxed iframe (no allow-top-navigation)
+    // so intent:// / market:// redirects are blocked by the browser itself —
+    // they cannot reach or crash the parent page.
+    const AD_IFRAME_CONTENT = encodeURIComponent(`<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:transparent}</style>
+</head><body>
+<script>(function(s){s.dataset.zone='11003103',s.src='https://al5sm.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))<\/script>
+<script>
+window.addEventListener('load',function(){
+  var fn=window['show_11003103'];
+  if(typeof fn==='function') fn();
+});
+<\/script>
+</body></html>`);
+
     const AD_VIEW_HTML = `<!DOCTYPE html>
-  <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-    <title>مشاهدة الإعلان</title>
-    <style>
-      *{margin:0;padding:0;box-sizing:border-box}
-      body{background:#0d1117;color:#fff;font-family:'Segoe UI',sans-serif;
-           display:flex;flex-direction:column;align-items:center;justify-content:center;
-           min-height:100vh;padding:24px;text-align:center}
-      .card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-            border-radius:20px;padding:28px 20px;max-width:380px;width:100%}
-      h2{font-size:18px;font-weight:800;margin-bottom:8px;color:#fff}
-      p{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:20px}
-      .badge{display:inline-block;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);
-             color:#34d399;border-radius:50px;padding:6px 18px;font-size:12px;font-weight:700;margin-bottom:20px}
-      .back-btn{display:inline-block;margin-top:24px;padding:14px 32px;border-radius:14px;
-                background:linear-gradient(135deg,#10b981,#059669);color:#fff;
-                font-weight:800;font-size:15px;text-decoration:none;border:none;cursor:pointer;width:100%}
-    </style>
-  </head>
-  <body>
-    <!-- Block non-http(s) URL schemes BEFORE any ad script loads -->
-    <!-- Telegram WebView crashes on intent://, market://, fb://, etc. -->
-    <script>
-      (function() {
-        // 1. Intercept all link clicks — block unknown URL schemes
-        document.addEventListener('click', function(e) {
-          var el = e.target;
-          while (el && el.tagName !== 'A') el = el.parentElement;
-          if (el && el.href) {
-            var h = el.href;
-            if (!/^https?:\/\//i.test(h) && !/^#/.test(h) && h !== 'javascript:void(0)') {
-              e.preventDefault(); e.stopImmediatePropagation(); return false;
-            }
-          }
-        }, true);
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>مشاهدة الإعلان</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;background:#0d1117;color:#fff;font-family:'Segoe UI',sans-serif}
+    body{display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+    /* Ad iframe fills most of the screen */
+    #ad-frame{
+      width:100%;flex:1;border:none;
+      min-height:calc(100vh - 80px);
+      display:block;background:transparent;
+    }
+    .back-btn{
+      width:100%;height:56px;border:none;
+      background:linear-gradient(135deg,#10b981,#059669);
+      color:#fff;font-weight:800;font-size:16px;
+      cursor:pointer;letter-spacing:0.02em;
+      flex-shrink:0;
+    }
+  </style>
+</head>
+<body>
+  <!-- sandbox: no allow-top-navigation → intent:// links are silently blocked -->
+  <iframe
+    id="ad-frame"
+    sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
+    src="data:text/html,${AD_IFRAME_CONTENT}"
+    scrolling="no"
+  ></iframe>
 
-        // 2. Intercept window.open to block non-http(s) URLs
-        var _open = window.open;
-        window.open = function(url, target, features) {
-          if (url && typeof url === 'string' && !/^https?:\/\//i.test(url)) return null;
-          return _open.call(window, url, target, features);
-        };
-
-        // 3. Intercept location.assign / location.replace / location.href
-        var _assign  = window.location.assign.bind(window.location);
-        var _replace = window.location.replace.bind(window.location);
-        try {
-          Object.defineProperty(window.location, 'assign',  { value: function(u) { if (/^https?:\/\//i.test(u)) _assign(u);  }, configurable: true });
-          Object.defineProperty(window.location, 'replace', { value: function(u) { if (/^https?:\/\//i.test(u)) _replace(u); }, configurable: true });
-        } catch(e) {}
-
-        // 4. Catch any unhandled navigation errors silently
-        window.addEventListener('error', function(e) { e.preventDefault(); }, true);
-        window.addEventListener('unhandledrejection', function(e) { e.preventDefault(); }, true);
-      })();
-    </script>
-
-    <div class="card">
-      <div class="badge">📺 إعلان</div>
-      <h2>شاهد الإعلان واربح النقاط</h2>
-      <p>الإعلان يعرض أدناه — شاهده كاملاً ثم اضغط "عدت" للحصول على مكافأتك</p>
-
-      <!-- Interstitial Ad — zone 11003103 (injected after URL-scheme guard) -->
-      <script>(function(s){s.dataset.zone='11003103',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-
-      <script>
-        window.addEventListener('load', function() {
-          var fn = window['show_11003103'];
-          if (typeof fn === 'function') fn();
-        });
-      </script>
-
-      <button class="back-btn" onclick="try{window.close();}catch(e){} try{history.back();}catch(e){}">
-        ✅ عدت — استلم مكافأتك
-      </button>
-    </div>
-  </body>
-  </html>`;
+  <button class="back-btn" onclick="try{window.close();}catch(e){} try{history.back();}catch(e){}">
+    ✅ انقر للحصول على المكافأة — عدت
+  </button>
+</body>
+</html>`;
 
     app.get("/ad-view", (_req, res) => {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
