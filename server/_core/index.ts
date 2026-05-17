@@ -69,12 +69,49 @@ async function startServer() {
     </style>
   </head>
   <body>
+    <!-- Block non-http(s) URL schemes BEFORE any ad script loads -->
+    <!-- Telegram WebView crashes on intent://, market://, fb://, etc. -->
+    <script>
+      (function() {
+        // 1. Intercept all link clicks — block unknown URL schemes
+        document.addEventListener('click', function(e) {
+          var el = e.target;
+          while (el && el.tagName !== 'A') el = el.parentElement;
+          if (el && el.href) {
+            var h = el.href;
+            if (!/^https?:\/\//i.test(h) && !/^#/.test(h) && h !== 'javascript:void(0)') {
+              e.preventDefault(); e.stopImmediatePropagation(); return false;
+            }
+          }
+        }, true);
+
+        // 2. Intercept window.open to block non-http(s) URLs
+        var _open = window.open;
+        window.open = function(url, target, features) {
+          if (url && typeof url === 'string' && !/^https?:\/\//i.test(url)) return null;
+          return _open.call(window, url, target, features);
+        };
+
+        // 3. Intercept location.assign / location.replace / location.href
+        var _assign  = window.location.assign.bind(window.location);
+        var _replace = window.location.replace.bind(window.location);
+        try {
+          Object.defineProperty(window.location, 'assign',  { value: function(u) { if (/^https?:\/\//i.test(u)) _assign(u);  }, configurable: true });
+          Object.defineProperty(window.location, 'replace', { value: function(u) { if (/^https?:\/\//i.test(u)) _replace(u); }, configurable: true });
+        } catch(e) {}
+
+        // 4. Catch any unhandled navigation errors silently
+        window.addEventListener('error', function(e) { e.preventDefault(); }, true);
+        window.addEventListener('unhandledrejection', function(e) { e.preventDefault(); }, true);
+      })();
+    </script>
+
     <div class="card">
       <div class="badge">📺 إعلان</div>
       <h2>شاهد الإعلان واربح النقاط</h2>
       <p>الإعلان يعرض أدناه — شاهده كاملاً ثم اضغط "عدت" للحصول على مكافأتك</p>
 
-      <!-- Interstitial Ad — zone 11003103 -->
+      <!-- Interstitial Ad — zone 11003103 (injected after URL-scheme guard) -->
       <script>(function(s){s.dataset.zone='11003103',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
       <script>
@@ -84,7 +121,7 @@ async function startServer() {
         });
       </script>
 
-      <button class="back-btn" onclick="window.close(); history.back();">
+      <button class="back-btn" onclick="try{window.close();}catch(e){} try{history.back();}catch(e){}">
         ✅ عدت — استلم مكافأتك
       </button>
     </div>
