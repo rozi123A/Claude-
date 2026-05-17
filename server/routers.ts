@@ -86,9 +86,9 @@ function resetDailyIfNeeded(user: any) {
     // New day — reset counter
     updates.todayAds = 0;
     updates.todayAdsDate = todayStr;
-  } else if (Number(user.todayAds) > 10) {
-    // Same day but value corrupted (accumulated from old reset bug) — cap it
-    updates.todayAds = 10;
+  } else if (Number(user.todayAds) > 50) {
+    // Same day but value corrupted — cap it
+    updates.todayAds = 50;
   }
 
   const spinDate = user.spinsDate || "";
@@ -236,7 +236,7 @@ export const appRouter = router({
           }
         }
         // Spin-type ads bypass the daily points-ad limit (they have their own 5/day limit on the client)
-        if (input.type !== "spin" && user.todayAds >= 10) return { success: false, message: "Daily limit reached" };
+        if (input.type !== "spin" && user.todayAds >= 50) return { success: false, message: "Daily limit reached" };
         if (!checkRateLimit(input.telegramId)) {
           return { success: false, message: "طلبات كثيرة جداً — انتظر دقيقة" };
         }

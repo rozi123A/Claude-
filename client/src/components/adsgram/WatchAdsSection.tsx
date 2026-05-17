@@ -49,7 +49,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
 
   // FIX: Create token BEFORE showing overlay so tokenAge ≥ 15s when user claims
   const handleWatchAd = async () => {
-    if (user.todayAds >= 10) {
+    if (user.todayAds >= 50) {
       toast({ title: t.notice, description: t.daily_ad_warning, variant: "destructive" });
       return;
     }
@@ -91,7 +91,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
     }
   };
 
-  const canWatch = cooldownRemaining === 0 && user.todayAds < 10;
+  const canWatch = cooldownRemaining === 0 && user.todayAds < 50;
 
   return (
     <>
@@ -111,7 +111,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
               {t.today_ads}
             </p>
             <p style={{ fontSize: 28, fontWeight: 900, color: "#F59E0B", lineHeight: 1 }}>
-              {Math.min(user.todayAds, 10)}<span style={{ fontSize: 13, color: "rgba(245,158,11,0.4)", marginLeft: 4 }}>/10</span>
+              {Math.min(user.todayAds, 50)}<span style={{ fontSize: 13, color: "rgba(245,158,11,0.4)", marginLeft: 4 }}>/50</span>
             </p>
           </div>
           <div style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 18, padding: "14px 16px" }}>
@@ -158,7 +158,7 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.9, textAlign: "center" }}>
             📺 {t.watch_full_ad}<br/>
             ⏱️ {(t.ad_cooldown_info || "كل إعلان مرة كل {cooldown} ثانية").replace("{cooldown}", String(user.adCooldown))}<br/>
-            🎯 {(t.daily_ads_limit || "الحد اليومي {limit} إعلان").replace("{limit}", "10")}
+            🎯 {(t.daily_ads_limit || "الحد اليومي {limit} إعلان").replace("{limit}", "50")}
           </p>
         </div>
       </div>

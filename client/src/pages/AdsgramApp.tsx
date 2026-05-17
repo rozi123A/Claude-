@@ -221,7 +221,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
                 {/* Quick Stats */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   {[
-                    { emoji: "📺", label: t.today_ads, value: Math.min(safeUser.todayAds, 10), color: "#F59E0B", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)", tab: "ads" },
+                    { emoji: "📺", label: t.today_ads, value: Math.min(safeUser.todayAds, 50), color: "#F59E0B", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)", tab: "ads" },
                     { emoji: "🎡", label: t.spins, value: `${safeUser.spinsLeft}/5`, color: "#EC4899", bg: "rgba(236,72,153,0.08)", border: "rgba(236,72,153,0.2)", tab: "spin" },
                   ].map((s, i) => (
                     <button key={i} onClick={() => setActiveTab(s.tab)} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", transition: "transform 0.15s", width: "100%" }}>
