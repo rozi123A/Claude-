@@ -1,0 +1,38 @@
+name: adsgram-pro-app
+services:
+  - name: web
+    type: web
+    github:
+      branch: main
+    build:
+      type: buildpack
+      buildpack:
+        build_command: pnpm install && pnpm run build
+        run_command: pnpm run start
+    ports:
+      - port: 3000
+        protocol: http
+    env:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        secret: DATABASE_URL
+      - key: BOT_TOKEN
+        secret: BOT_TOKEN
+      - key: ADMIN_TELEGRAM_ID
+        secret: ADMIN_TELEGRAM_ID
+      - key: ADMIN_CHAT_ID
+        secret: ADMIN_CHAT_ID
+      - key: ADMIN_SECRET
+        secret: ADMIN_SECRET
+      - key: ADMIN_KEY
+        secret: ADMIN_KEY
+      - key: FRONTEND_URL
+        secret: FRONTEND_URL
+      - key: WEBAPP_URL
+        secret: WEBAPP_URL
+      - key: JWT_SECRET
+        secret: JWT_SECRET
+    scaling:
+      min: 1
+      max: 1
