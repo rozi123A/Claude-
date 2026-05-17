@@ -1,20 +1,17 @@
-// Monetag interstitial — zone 10996226
-// Call this function at key moments to display a Monetag ad.
+// Interstitial ad — zone 11003103 (al5sm.com)
+// Call showMonetagAd() at key moments to trigger the interstitial popup.
 export function showMonetagAd(): void {
   try {
-    // Monetag creates a global function named show_ZONEID when their script loads
-    const fn = (window as any)["show_10996226"];
+    // The ad script exposes a global function named show_ZONEID once loaded
+    const fn = (window as any)["show_11003103"];
     if (typeof fn === "function") {
       fn();
       return;
     }
-    // Fallback: create a temporary hidden link and click it to trigger popunder
-    const a = document.createElement("a");
-    a.href = "https://alwingulla.com/88/tag.min.js";
-    a.style.display = "none";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { try { document.body.removeChild(a); } catch {} }, 1000);
+    // Fallback: inject the script again to force the popup
+    const s = document.createElement("script");
+    s.dataset.zone = "11003103";
+    s.src = "https://al5sm.com/tag.min.js";
+    document.body.appendChild(s);
   } catch {}
 }

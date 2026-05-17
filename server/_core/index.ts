@@ -35,14 +35,6 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
-// Monetag service worker content
-const MONETAG_SW = `self.options = {
-    "domain": "3nbf4.com",
-    "zoneId": 10996226
-}
-self.lary = ""
-importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')`;
-
 async function startServer() {
   await initDb();
 
@@ -52,14 +44,6 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-  // ── Monetag verification & service worker ──
-  app.get("/sw.js", (_req, res) => {
-    res.setHeader("Content-Type", "application/javascript");
-    res.setHeader("Service-Worker-Allowed", "/");
-    res.send(MONETAG_SW);
-  });
-
 
     // ── Ad view page — served inside Telegram's built-in browser ──
     const AD_VIEW_HTML = `<!DOCTYPE html>
@@ -86,19 +70,17 @@ async function startServer() {
   </head>
   <body>
     <div class="card">
-      <div class="badge">📺 ads by Monetag</div>
+      <div class="badge">📺 إعلان</div>
       <h2>شاهد الإعلان واربح النقاط</h2>
       <p>الإعلان يعرض أدناه — شاهده كاملاً ثم اضغط "عدت" للحصول على مكافأتك</p>
 
-      <!-- Monetag Interstitial Zone -->
-      <script async data-cfasync="false" src="//alwingulla.com/88/tag.min.js" data-zone="10996226" data-type="1"></script>
+      <!-- Interstitial Ad — zone 11003103 -->
+      <script>(function(s){s.dataset.zone='11003103',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
       <script>
-        // Auto-trigger the interstitial once the script loads
         window.addEventListener('load', function() {
-          if (typeof show_10996226 === 'function') {
-            show_10996226();
-          }
+          var fn = window['show_11003103'];
+          if (typeof fn === 'function') fn();
         });
       </script>
 

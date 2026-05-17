@@ -170,7 +170,7 @@ import { useEffect, useState, useRef } from "react";
 
           <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
             <p style={{ textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.18)", margin: 0 }}>
-              ads by Monetag
+              ads
             </p>
 
             <button onClick={handleClaim} disabled={!canClaim} style={{
