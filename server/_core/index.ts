@@ -45,61 +45,41 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-    // ── Ad view page — served inside Telegram's built-in browser ──
-    // The ad script runs inside a sandboxed iframe (no allow-top-navigation)
-    // so intent:// / market:// redirects are blocked by the browser itself —
-    // they cannot reach or crash the parent page.
-    const AD_IFRAME_CONTENT = encodeURIComponent(`<!DOCTYPE html>
-<html><head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{background:transparent}</style>
-</head><body>
-<script>(function(s){s.dataset.zone='11003103',s.src='https://al5sm.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))<\/script>
-<script>
-window.addEventListener('load',function(){
-  var fn=window['show_11003103'];
-  if(typeof fn==='function') fn();
-});
-<\/script>
-</body></html>`);
-
+    // ── Ad view page — Monetag OnClick Popunder runs directly on the page ──
+    // The script must NOT be inside an iframe/sandbox — popunders require
+    // direct page context to work correctly without triggering CAPTCHA.
     const AD_VIEW_HTML = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
   <title>مشاهدة الإعلان</title>
+
+  <!-- Monetag OnClick Popunder — on the page directly, never inside an iframe -->
+  <script>(function(s){s.dataset.zone='11003103',s.src='https://al5sm.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))<\/script>
+
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    html,body{height:100%;background:#0d1117;color:#fff;font-family:'Segoe UI',sans-serif}
-    body{display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
-    /* Ad iframe fills most of the screen */
-    #ad-frame{
-      width:100%;flex:1;border:none;
-      min-height:calc(100vh - 80px);
-      display:block;background:transparent;
-    }
+    html,body{height:100%;background:#0d1117;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+    .icon{font-size:64px;margin-bottom:16px}
+    h2{font-size:20px;font-weight:700;margin-bottom:8px;color:#10b981}
+    p{font-size:14px;color:#9ca3af;margin-bottom:32px;line-height:1.6}
     .back-btn{
-      width:100%;height:56px;border:none;
+      width:100%;max-width:320px;height:56px;border:none;border-radius:14px;
       background:linear-gradient(135deg,#10b981,#059669);
-      color:#fff;font-weight:800;font-size:16px;
+      color:#fff;font-weight:800;font-size:17px;
       cursor:pointer;letter-spacing:0.02em;
-      flex-shrink:0;
+      box-shadow:0 4px 20px rgba(16,185,129,0.4);
     }
+    .back-btn:active{transform:scale(0.97)}
   </style>
 </head>
 <body>
-  <!-- sandbox: no allow-top-navigation → intent:// links are silently blocked -->
-  <iframe
-    id="ad-frame"
-    sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
-    src="data:text/html,${AD_IFRAME_CONTENT}"
-    scrolling="no"
-  ></iframe>
-
+  <div class="icon">📺</div>
+  <h2>شاهد الإعلان للحصول على نقاطك</h2>
+  <p>سيفتح الإعلان تلقائياً عند النقر على الزر.<br/>بعد مشاهدة الإعلان اضغط "عدت" للحصول على مكافأتك.</p>
   <button class="back-btn" onclick="try{window.close();}catch(e){} try{history.back();}catch(e){}">
-    ✅ انقر للحصول على المكافأة — عدت
+    ✅ عدت — استلم مكافأتك
   </button>
 </body>
 </html>`;
