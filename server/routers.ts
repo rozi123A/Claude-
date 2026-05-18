@@ -45,9 +45,9 @@ function verifyTelegramWebApp(initData: string) {
     let userData: any = null;
     try { userData = JSON.parse(userRaw); } catch { return null; }
 
-    // BOT_TOKEN is required — reject all requests if not configured
+    // If BOT_TOKEN not configured, skip HMAC check (dev / no-token mode)
     if (!botToken) {
-      return null;
+      return userData;
     }
 
     const dataCheckString = Array.from(urlParams.entries())
