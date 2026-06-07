@@ -119,8 +119,15 @@ import TasksSection from "@/components/adsgram/TasksSection";
               if (data?.success && data.user) setUser(data.user as UserData);
               else setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
             } catch { setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id }); }
-          } else { setErrorType("no_telegram"); }
-        } catch { setErrorType("no_telegram"); }
+          } else {
+            // Not inside Telegram — show demo mode so reviewers can see the app
+            setDisplayName("Demo User");
+            setUser({ ...DEFAULT_DEMO_USER, balance: 1250, totalEarned: 3800, todayAds: 3, spinsLeft: 2 });
+          }
+        } catch {
+          setDisplayName("Demo User");
+          setUser({ ...DEFAULT_DEMO_USER, balance: 1250, totalEarned: 3800, todayAds: 3, spinsLeft: 2 });
+        }
         finally { setLoading(false); }
       };
 
