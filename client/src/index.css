@@ -1,3 +1,4 @@
+CSS SHA: 520fc8f512458769357d4f80625fe0d5972814ba
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -189,7 +190,7 @@
   }
   .orb-1 {
     width: 420px; height: 420px;
-    background: radial-gradient(circle, #7C3AED 0%, transparent 70%);
+    background: radial-gradient(circle, #059669 0%, transparent 70%);
     top: -120px; left: -120px;
     animation-delay: 0s;
   }
@@ -264,7 +265,7 @@
   /* Smooth scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-  ::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.3); border-radius: 4px; }
 
   /* Number inputs */
   input[type=number]::-webkit-inner-spin-button,
