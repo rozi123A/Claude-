@@ -1,3 +1,4 @@
+SHA: 5fd2c15099465437e3864606f848f2cf644a8ec4
 import { useState, useEffect, useCallback } from "react";
     import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield, Trophy , CheckSquare} from "lucide-react";
     import { translations, type Language } from "@/lib/i18n";
@@ -383,18 +384,72 @@ import TasksSection from "@/components/adsgram/TasksSection";
               )}
 
           {/* BOTTOM NAV */}
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100, display: "flex", justifyContent: "center", padding: "0 10px 10px" }}>
-            <div style={{ width: "100%", maxWidth: 480, background: "rgba(7,7,17,0.88)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 26, border: "1px solid rgba(255,255,255,0.07)", padding: "6px 4px", display: "flex", justifyContent: "space-around", boxShadow: "0 -2px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.08)" }}>
-              {NAV.map(({ id, icon: Icon, label, emoji }) => {
+          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100 }}>
+            <div style={{
+              width: "100%",
+              background: "rgba(5,5,15,0.96)",
+              backdropFilter: "blur(30px)",
+              WebkitBackdropFilter: "blur(30px)",
+              borderTop: "1px solid rgba(255,255,255,0.08)",
+              padding: "8px 4px 16px",
+              display: "flex",
+              justifyContent: "space-around",
+              boxShadow: "0 -8px 32px rgba(0,0,0,0.7)",
+            }}>
+              {NAV.map(({ id, icon: Icon, label }) => {
                 const active = activeTab === id;
-                const c = tabAccent[id];
+                const c = tabAccent[id] || "#8B5CF6";
                 return (
-                  <button key={id} onClick={() => { if (id === "admin") { window.location.href = "/admin"; return; } setActiveTab(id); }} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 2px 6px", background: "none", border: "none", cursor: "pointer", position: "relative", borderRadius: 18, transition: "all 0.2s" }}>
-                    {active && <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 28, height: 2.5, borderRadius: 2, background: `linear-gradient(90deg, ${c}, ${c}aa)` }} />}
-                    <div style={{ width: 40, height: 36, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: active ? `${c}22` : "transparent", transition: "all 0.2s" }}>
-                      <Icon size={19} style={{ color: active ? c : "rgba(255,255,255,0.28)", transition: "all 0.2s" }} />
+                  <button
+                    key={id}
+                    onClick={() => { if (id === "admin") { window.location.href = "/admin"; return; } setActiveTab(id); }}
+                    style={{
+                      flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+                      gap: 4, padding: "6px 2px 2px", background: "none", border: "none",
+                      cursor: "pointer", position: "relative", borderRadius: 16,
+                      transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+                      transform: active ? "translateY(-2px)" : "none",
+                    }}
+                  >
+                    {/* Active glow dot */}
+                    {active && (
+                      <div style={{
+                        position: "absolute", top: -1, left: "50%", transform: "translateX(-50%)",
+                        width: 32, height: 3, borderRadius: 3,
+                        background: `linear-gradient(90deg, transparent, ${c}, transparent)`,
+                      }} />
+                    )}
+                    {/* Icon container */}
+                    <div style={{
+                      width: 48, height: 44, borderRadius: 16,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: active
+                        ? `linear-gradient(135deg, ${c}30, ${c}18)`
+                        : "transparent",
+                      border: active ? `1px solid ${c}35` : "1px solid transparent",
+                      boxShadow: active ? `0 4px 20px ${c}30` : "none",
+                      transition: "all 0.25s",
+                    }}>
+                      <Icon
+                        size={24}
+                        strokeWidth={active ? 2.2 : 1.7}
+                        style={{
+                          color: active ? c : "rgba(255,255,255,0.35)",
+                          filter: active ? `drop-shadow(0 0 8px ${c}80)` : "none",
+                          transition: "all 0.25s",
+                        }}
+                      />
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: active ? c : "rgba(255,255,255,0.28)", letterSpacing: "0.03em", transition: "all 0.2s", whiteSpace: "nowrap" }}>{label}</span>
+                    {/* Label */}
+                    <span style={{
+                      fontSize: 9.5, fontWeight: active ? 800 : 500,
+                      color: active ? c : "rgba(255,255,255,0.3)",
+                      letterSpacing: "0.02em", transition: "all 0.25s",
+                      whiteSpace: "nowrap",
+                      textShadow: active ? `0 0 12px ${c}60` : "none",
+                    }}>
+                      {label}
+                    </span>
                   </button>
                 );
               })}
