@@ -114,12 +114,12 @@ export default function WatchAdsSection({ user, lang, onReward }: WatchAdsSectio
               {Math.min(user.todayAds, 50)}<span style={{ fontSize: 13, color: "rgba(245,158,11,0.4)", marginLeft: 4 }}>/50</span>
             </p>
           </div>
-          <div style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 18, padding: "14px 16px" }}>
-            <p style={{ fontSize: 9, color: "rgba(139,92,246,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
+          <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 18, padding: "14px 16px" }}>
+            <p style={{ fontSize: 9, color: "rgba(16,185,129,0.6)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
               {t.reward}
             </p>
-            <p style={{ fontSize: 28, fontWeight: 900, color: "#A78BFA", lineHeight: 1 }}>
-              +{user.adReward}<span style={{ fontSize: 11, color: "rgba(139,92,246,0.4)", marginLeft: 4 }}>{t.points}</span>
+            <p style={{ fontSize: 28, fontWeight: 900, color: "#34D399", lineHeight: 1 }}>
+              +{user.adReward}<span style={{ fontSize: 11, color: "rgba(16,185,129,0.4)", marginLeft: 4 }}>{t.points}</span>
             </p>
           </div>
         </div>
