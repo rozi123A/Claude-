@@ -1,3 +1,4 @@
+SHA: c229e2f0002ad1d6ea4aaf7065e2ef4ab380463c
 SHA: 5fd2c15099465437e3864606f848f2cf644a8ec4
 import { useState, useEffect, useCallback } from "react";
     import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield, Trophy , CheckSquare} from "lucide-react";
@@ -48,11 +49,11 @@ import TasksSection from "@/components/adsgram/TasksSection";
       const { data: transactions, isLoading } = trpc.telegram.getTransactions.useQuery({ telegramId });
       const t = translations[lang];
       const typeIcons: Record<string, string> = { ad: "📺", spin: "🎡", referral: "👥", withdraw: "💸", bonus: "🎁", task: "✅" };
-      const typeColors: Record<string, string> = { ad: "#F59E0B", spin: "#8B5CF6", referral: "#3B82F6", withdraw: "#EF4444", bonus: "#10B981", task: "#6366F1" };
+      const typeColors: Record<string, string> = { ad: "#F59E0B", spin: "#10B981", referral: "#3B82F6", withdraw: "#EF4444", bonus: "#10B981", task: "#6366F1" };
 
       if (isLoading) return (
         <div style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}>
-          <div style={{ width: 28, height: 28, border: "3px solid rgba(139,92,246,0.3)", borderTopColor: "#8B5CF6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <div style={{ width: 28, height: 28, border: "3px solid rgba(16,185,129,0.3)", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
         </div>
       );
       if (!transactions?.length) return (
@@ -146,17 +147,17 @@ import TasksSection from "@/components/adsgram/TasksSection";
       }, []);
 
       if (loading) return (
-        <div style={{ minHeight: "100vh", background: "#070711", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20 }}>
+        <div style={{ minHeight: "100vh", background: "#040f0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20 }}>
           <div style={{ position: "relative" }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", border: "3px solid rgba(139,92,246,0.2)", borderTopColor: "#8B5CF6", borderRightColor: "#FFD700", animation: "spin 1s linear infinite" }} />
+            <div style={{ width: 64, height: 64, borderRadius: "50%", border: "3px solid rgba(16,185,129,0.2)", borderTopColor: "#10B981", borderRightColor: "#FFD700", animation: "spin 1s linear infinite" }} />
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>✨</div>
           </div>
-          <p style={{ color: "rgba(139,92,246,0.8)", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em" }}>{t.loading}</p>
+          <p style={{ color: "rgba(16,185,129,0.8)", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em" }}>{t.loading}</p>
         </div>
       );
 
       if (errorType === "no_telegram") return (
-        <div style={{ minHeight: "100vh", background: "#070711", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
+        <div style={{ minHeight: "100vh", background: "#040f0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
           <div style={{ fontSize: 64, marginBottom: 8 }}>📱</div>
           <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>افتح التطبيق من داخل Telegram</h2>
           <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>
@@ -166,16 +167,16 @@ import TasksSection from "@/components/adsgram/TasksSection";
       );
 
       if (errorType === "no_user") return (
-        <div style={{ minHeight: "100vh", background: "#070711", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
+        <div style={{ minHeight: "100vh", background: "#040f0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
           <div style={{ fontSize: 64, marginBottom: 8 }}>🤖</div>
           <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>افتح البوت واضغط Start أولاً</h2>
           <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>
             يبدو أنك لم تبدأ البوت بعد.<br/>
-            افتح البوت في Telegram، اضغط <strong style={{ color: "#8B5CF6" }}>Start</strong>، ثم أعد فتح التطبيق.
+            افتح البوت في Telegram، اضغط <strong style={{ color: "#10B981" }}>Start</strong>، ثم أعد فتح التطبيق.
           </p>
           <button
             onClick={() => window.location.reload()}
-            style={{ marginTop: 8, padding: "12px 32px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #8B5CF6, #6D28D9)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}
+            style={{ marginTop: 8, padding: "12px 32px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #10B981, #047857)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}
           >
             إعادة المحاولة
           </button>
@@ -198,12 +199,12 @@ import TasksSection from "@/components/adsgram/TasksSection";
       ];
 
       const tabAccent: Record<string, string> = {
-        home: "#8B5CF6", ads: "#F59E0B", spin: "#EC4899", tasks: "#6366F1", friends: "#3B82F6", leaderboard: "#F59E0B", withdraw: "#10B981",
-        admin: "#7C3AED"
+        home: "#10B981", ads: "#F59E0B", spin: "#EC4899", tasks: "#6366F1", friends: "#3B82F6", leaderboard: "#F59E0B", withdraw: "#10B981",
+        admin: "#059669"
       };
 
       return (
-        <div style={{ minHeight: "100vh", background: "#070711", color: "#fff", fontFamily: "'Inter', system-ui, -apple-system, sans-serif", paddingBottom: 88, overflowX: "hidden" }}>
+        <div style={{ minHeight: "100vh", background: "#040f0a", color: "#fff", fontFamily: "'Inter', system-ui, -apple-system, sans-serif", paddingBottom: 88, overflowX: "hidden" }}>
           {/* Animated orb background */}
           <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
             <div className="orb orb-1" />
@@ -219,21 +220,21 @@ import TasksSection from "@/components/adsgram/TasksSection";
                 {/* Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6 }}>
                   <div>
-                    <p style={{ fontSize: 10, color: "rgba(139,92,246,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>{t.greeting}</p>
+                    <p style={{ fontSize: 10, color: "rgba(16,185,129,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>{t.greeting}</p>
                     <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0, background: "linear-gradient(135deg, #FFD700 0%, #F59E0B 50%, #EF4444 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                       {displayName} ✨
                     </h1>
                   </div>
-                  <button onClick={toggleLanguage} style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 24, padding: "8px 14px", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>
+                  <button onClick={toggleLanguage} style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 24, padding: "8px 14px", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>
                     {lang === "ar" ? "🇸🇦" : lang === "en" ? "🇬🇧" : "🇷🇺"}
                   </button>
                 </div>
 
                 {/* Balance Card */}
-                <div style={{ borderRadius: 24, padding: "22px 22px 18px", position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #130826 0%, #0b1240 50%, #150b2e 100%)", border: "1px solid rgba(139,92,246,0.28)", boxShadow: "0 8px 40px rgba(139,92,246,0.12), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
+                <div style={{ borderRadius: 24, padding: "22px 22px 18px", position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #021a12 0%, #042f1e 50%, #031a0f 100%)", border: "1px solid rgba(16,185,129,0.28)", boxShadow: "0 8px 40px rgba(16,185,129,0.12), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
                   <div className="shimmer-overlay" />
                   <div style={{ position: "relative" }}>
-                    <p style={{ fontSize: 9, color: "rgba(167,139,250,0.65)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 10 }}>{t.balance}</p>
+                    <p style={{ fontSize: 9, color: "rgba(52,211,153,0.65)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 10 }}>{t.balance}</p>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
                       <span style={{ fontSize: 46, fontWeight: 900, lineHeight: 1, background: "linear-gradient(135deg, #FFE44D, #FFB800)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 18px rgba(255,200,0,0.35))" }}>
                         {safeUser.balance.toLocaleString()}
@@ -243,11 +244,11 @@ import TasksSection from "@/components/adsgram/TasksSection";
                     <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)", margin: "14px 0" }} />
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
                       <div>
-                        <p style={{ fontSize: 9, color: "rgba(167,139,250,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>{t.total_earned}</p>
-                        <p style={{ fontSize: 18, fontWeight: 900, color: "#C4B5FD" }}>{safeUser.totalEarned.toLocaleString()}</p>
+                        <p style={{ fontSize: 9, color: "rgba(52,211,153,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>{t.total_earned}</p>
+                        <p style={{ fontSize: 18, fontWeight: 900, color: "#6EE7B7" }}>{safeUser.totalEarned.toLocaleString()}</p>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <p style={{ fontSize: 9, color: "rgba(167,139,250,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>Telegram Stars</p>
+                        <p style={{ fontSize: 9, color: "rgba(52,211,153,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>Telegram Stars</p>
                         <p style={{ fontSize: 18, fontWeight: 900, color: "#FFD700" }}>⭐ {starsEquivalent}</p>
                       </div>
                     </div>
@@ -271,10 +272,10 @@ import TasksSection from "@/components/adsgram/TasksSection";
                 </div>
 
                 {/* Daily Gift */}
-                <div style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 20, overflow: "hidden" }}>
-                  <div style={{ padding: "11px 16px", borderBottom: "1px solid rgba(139,92,246,0.12)", display: "flex", alignItems: "center", gap: 8, background: "rgba(139,92,246,0.08)" }}>
+                <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 20, overflow: "hidden" }}>
+                  <div style={{ padding: "11px 16px", borderBottom: "1px solid rgba(16,185,129,0.12)", display: "flex", alignItems: "center", gap: 8, background: "rgba(16,185,129,0.08)" }}>
                     <span style={{ fontSize: 15 }}>🎁</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "#C4B5FD", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t.daily_gift_title}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: "#6EE7B7", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t.daily_gift_title}</span>
                   </div>
                   <div style={{ padding: 16, display: "flex", justifyContent: "center" }}>
                     <DailyGiftBox
@@ -398,7 +399,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
             }}>
               {NAV.map(({ id, icon: Icon, label }) => {
                 const active = activeTab === id;
-                const c = tabAccent[id] || "#8B5CF6";
+                const c = tabAccent[id] || "#10B981";
                 return (
                   <button
                     key={id}
