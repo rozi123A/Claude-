@@ -1,550 +1,262 @@
-SHA: c229e2f0002ad1d6ea4aaf7065e2ef4ab380463c
-SHA: 5fd2c15099465437e3864606f848f2cf644a8ec4
-import { useState, useEffect, useCallback } from "react";
-    import { Home, Play, Gift, Users, Wallet, ChevronRight, History, Shield, Trophy , CheckSquare} from "lucide-react";
-    import { translations, type Language } from "@/lib/i18n";
-    import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
-    import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
-    import WithdrawSection from "@/components/adsgram/WithdrawSection";
-    import ReferralSection from "@/components/adsgram/ReferralSection";
-    import DailyGiftBox from "@/components/adsgram/DailyGiftBox";
-import TasksSection from "@/components/adsgram/TasksSection";
-    import LeaderboardSection from "@/components/adsgram/LeaderboardSection";
-    import { useToast } from "@/hooks/use-toast";
-    import { trpc } from "@/lib/trpc";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, Zap, Gift, TrendingUp, Wallet, Award, Globe } from "lucide-react";
+import SubscriptionCheck from "@/components/SubscriptionCheck";
+import WatchAdsSection from "@/components/adsgram/WatchAdsSection";
+import SpinWheelSection from "@/components/adsgram/SpinWheelSection";
+import DailyGiftSection from "@/components/adsgram/DailyGiftSection";
+import WithdrawSection from "@/components/adsgram/WithdrawSection";
+import ReferralSection from "@/components/adsgram/ReferralSection";
+import { useToast } from "@/hooks/use-toast";
+import { trpc } from "@/lib/trpc";
+import { translations, Language } from "@/lib/translations";
 
-    interface UserData {
-      telegramId: number;
-      balance: number;
-      totalEarned: number;
-      todayAds: number;
-      spinsLeft: number;
-      referralCode: string;
-      adReward: number;
-      minWithdraw: number;
-      starsRate: number;
-      adCooldown: number;
-      adsgramBlockId: string;
-      lastAdTime: number | null;
-      isAdmin: boolean;
-    }
+interface UserData {
+  telegramId: number;
+  balance: number;
+  totalEarned: number;
+  todayAds: number;
+  spinsLeft: number;
+  referralCode: string;
+  adReward: number;
+  minWithdraw: number;
+  starsRate: number;
+  adCooldown: number;
+  lastAdTime: number | null;
+  lastDailyGift?: number | null;
+}
 
-    const DEFAULT_DEMO_USER: UserData = {
-      telegramId: 123456789,
-      balance: 0,
-      totalEarned: 0,
-      todayAds: 0,
-      spinsLeft: 5,
-      referralCode: "ref_NEW",
-      adReward: 10,
-      minWithdraw: 10000,
-      starsRate: 1000,
-      adCooldown: 30,
-      adsgramBlockId: "",
-      lastAdTime: null,
-      isAdmin: false,
-    };
+const DEFAULT_DEMO_USER: UserData = {
+  telegramId: 123456789,
+  balance: 0.00,
+  totalEarned: 0.00,
+  todayAds: 0,
+  spinsLeft: 5,
+  referralCode: "ref_NEW",
+  adReward: 100,
+  minWithdraw: 10000,
+  starsRate: 1000,
+  adCooldown: 30,
+  lastAdTime: null,
+};
 
-    function ActivityLog({ telegramId, lang }: { telegramId: number; lang: Language }) {
-      const { data: transactions, isLoading } = trpc.telegram.getTransactions.useQuery({ telegramId });
-      const t = translations[lang];
-      const typeIcons: Record<string, string> = { ad: "📺", spin: "🎡", referral: "👥", withdraw: "💸", bonus: "🎁", task: "✅" };
-      const typeColors: Record<string, string> = { ad: "#F59E0B", spin: "#10B981", referral: "#3B82F6", withdraw: "#EF4444", bonus: "#10B981", task: "#6366F1" };
-
-      if (isLoading) return (
-        <div style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}>
-          <div style={{ width: 28, height: 28, border: "3px solid rgba(16,185,129,0.3)", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-        </div>
-      );
-      if (!transactions?.length) return (
-        <div style={{ textAlign: "center", padding: "32px 0", color: "rgba(255,255,255,0.2)" }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
-          <p style={{ fontSize: 12 }}>{t.no_activity}</p>
-        </div>
-      );
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {transactions.map((tx: any) => (
-            <div key={tx.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${typeColors[tx.type] || "#6B7280"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
-                {typeIcons[tx.type] || "•"}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", marginBottom: 2 }}>
-                  {tx.type === "ad" ? t.type_ad : tx.type === "spin" ? t.type_spin : tx.type === "referral" ? t.type_ref : tx.type === "withdraw" ? t.type_withdraw : t.type_reg}
-                </p>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{new Date(tx.createdAt).toLocaleString()}</p>
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 900, color: tx.points >= 0 ? "#10B981" : "#EF4444", flexShrink: 0 }}>
-                {tx.points >= 0 ? "+" : ""}{tx.points.toLocaleString()}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    export default function AdsgramApp() {
-      const [user, setUser] = useState<UserData | null>(null);
-      const [loading, setLoading] = useState(true);
-      const [errorType, setErrorType] = useState<null | "no_telegram" | "no_user">(null);
-      const [activeTab, setActiveTab] = useState("home");
-      const [lang, setLang] = useState<Language>("ar");
-    const [channelJoined, setChannelJoined] = useState<boolean>(() => {
-      try { return localStorage.getItem("channel_joined_earn130") === "1"; } catch { return false; }
-    });
-    const [displayName, setDisplayName] = useState("");
-      const { toast } = useToast();
-      const t = translations[lang];
-      const getUserMutation = trpc.telegram.getUser.useMutation();
-
-      const toggleLanguage = () => {
-        const langs: Language[] = ["ar", "en", "ru"];
-        setLang(langs[(langs.indexOf(lang) + 1) % langs.length]);
-      };
-
-      useEffect(() => { initializeTelegramApp(); }, []);
-
-      const initializeTelegramApp = async () => {
-        try {
-          if (typeof window !== "undefined" && window.Telegram?.WebApp) {
-            const tg = window.Telegram.WebApp;
-            tg.ready(); tg.expand();
-            const initData = tg.initData;
-            const telegramUser = tg.initDataUnsafe?.user;
-            const startParam = tg.initDataUnsafe?.start_param;
-            if (!telegramUser) { setErrorType("no_user"); setLoading(false); return; }
-            setDisplayName(telegramUser.first_name || telegramUser.username || "");
-            try {
-              const data = await getUserMutation.mutateAsync({
-                telegramId: telegramUser.id,
-                initData: initData || "",
-                referredBy: startParam ? parseInt(startParam) : undefined,
-              }).catch(() => ({ success: false, user: null }));
-              if (data?.success && data.user) setUser(data.user as UserData);
-              else setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
-            } catch { setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id }); }
-          } else {
-            // Not inside Telegram — show demo mode so reviewers can see the app
-            setDisplayName("Demo User");
-            setUser({ ...DEFAULT_DEMO_USER, balance: 1250, totalEarned: 3800, todayAds: 3, spinsLeft: 2 });
-          }
-        } catch {
-          setDisplayName("Demo User");
-          setUser({ ...DEFAULT_DEMO_USER, balance: 1250, totalEarned: 3800, todayAds: 3, spinsLeft: 2 });
-        }
-        finally { setLoading(false); }
-      };
-
-      const refreshUser = useCallback(async (partialUpdate?: Partial<UserData>) => {
-        if (partialUpdate) setUser(prev => prev ? { ...prev, ...partialUpdate } : prev);
-        try {
-          if (typeof window !== "undefined" && window.Telegram?.WebApp) {
-            const tg = window.Telegram.WebApp;
-            const telegramUser = tg.initDataUnsafe?.user;
-            if (!telegramUser) return;
-            const data = await getUserMutation.mutateAsync({ telegramId: telegramUser.id, initData: tg.initData || "" }).catch(() => ({ success: false, user: null }));
-            if (data?.success && data.user) setUser(data.user as UserData);
-          }
-        } catch {}
-      }, []);
-
-      // ── Channel subscription gate ──
-      if (!channelJoined) return (
-        <div style={{
-          minHeight: "100vh",
-          background: "linear-gradient(160deg, #0a0f1e 0%, #0d1a3e 50%, #07100d 100%)",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          gap: 0, padding: "32px 24px", textAlign: "center"
-        }}>
-          {/* Glow orb */}
-          <div style={{ position: "fixed", top: "10%", left: "50%", transform: "translateX(-50%)", width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-          {/* Telegram icon */}
-          <div style={{
-            width: 88, height: 88, borderRadius: "50%",
-            background: "linear-gradient(135deg, #6366F1 0%, #818CF8 100%)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 44, marginBottom: 24,
-            boxShadow: "0 0 40px rgba(99,102,241,0.45)"
-          }}>✈️</div>
-
-          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: "0 0 10px", lineHeight: 1.3 }}>
-            اشترك في القناة أولاً
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.7, margin: "0 0 20px", maxWidth: 280 }}>
-            يجب الاشتراك في قناتنا الرسمية<br />للوصول إلى التطبيق والحصول على المكافآت
-          </p>
-
-          {/* Channel name display */}
-          <div style={{
-            background: "rgba(99,102,241,0.15)",
-            border: "1px solid rgba(99,102,241,0.4)",
-            borderRadius: 14, padding: "12px 28px",
-            marginBottom: 24, direction: "ltr"
-          }}>
-            <span style={{ color: "#818CF8", fontWeight: 900, fontSize: 18, letterSpacing: "0.02em" }}>
-              @Earn130
-            </span>
-          </div>
-
-          {/* Subscribe button */}
-          <button
-            onClick={() => {
-              if (typeof window !== "undefined" && window.Telegram?.WebApp) {
-                window.Telegram.WebApp.openTelegramLink("https://t.me/Earn130");
-              } else {
-                window.open("https://t.me/Earn130", "_blank");
-              }
-            }}
-            style={{
-              width: "100%", maxWidth: 320,
-              padding: "16px 0", borderRadius: 18,
-              background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
-              color: "#fff", fontWeight: 800, fontSize: 16,
-              border: "none", cursor: "pointer", marginBottom: 14,
-              boxShadow: "0 4px 24px rgba(99,102,241,0.4)"
-            }}
-          >
-            📢 اشترك في القناة
-          </button>
-
-          {/* Verify button */}
-          <button
-            onClick={() => {
-              try { localStorage.setItem("channel_joined_earn130", "1"); } catch {}
-              setChannelJoined(true);
-            }}
-            style={{
-              width: "100%", maxWidth: 320,
-              padding: "14px 0", borderRadius: 18,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: 14,
-              cursor: "pointer"
-            }}
-          >
-            ✅ تحققت من الاشتراك
-          </button>
-
-          <p style={{ marginTop: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontWeight: 600 }}>
-            بعد الاشتراك اضغط "تحققت من الاشتراك"
-          </p>
-        </div>
-      );
-
-      if (loading) return (
-        <div style={{ minHeight: "100vh", background: "#040f0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20 }}>
-          <div style={{ position: "relative" }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", border: "3px solid rgba(16,185,129,0.2)", borderTopColor: "#10B981", borderRightColor: "#FFD700", animation: "spin 1s linear infinite" }} />
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>✨</div>
-          </div>
-          <p style={{ color: "rgba(16,185,129,0.8)", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em" }}>{t.loading}</p>
-        </div>
-      );
-
-      if (errorType === "no_telegram") return (
-        <div style={{ minHeight: "100vh", background: "#040f0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
-          <div style={{ fontSize: 64, marginBottom: 8 }}>📱</div>
-          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>افتح التطبيق من داخل Telegram</h2>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-            هذا التطبيق يعمل فقط كـ Mini App داخل Telegram.<br/>ابحث عن البوت وافتحه من هناك.
-          </p>
-        </div>
-      );
-
-      if (errorType === "no_user") return (
-        <div style={{ minHeight: "100vh", background: "#040f0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32, textAlign: "center" }}>
-          <div style={{ fontSize: 64, marginBottom: 8 }}>🤖</div>
-          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>افتح البوت واضغط Start أولاً</h2>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-            يبدو أنك لم تبدأ البوت بعد.<br/>
-            افتح البوت في Telegram، اضغط <strong style={{ color: "#10B981" }}>Start</strong>، ثم أعد فتح التطبيق.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{ marginTop: 8, padding: "12px 32px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #10B981, #047857)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}
-          >
-            إعادة المحاولة
-          </button>
-        </div>
-      );
-
-      const safeUser = user || DEFAULT_DEMO_USER;
-      const isAdmin = safeUser.isAdmin === true;
-      const starsEquivalent = Math.floor(safeUser.balance / safeUser.starsRate);
-
-      const NAV = [
-        { id: "home", icon: Home, label: t.home, emoji: "🏠" },
-        { id: "ads", icon: Play, label: t.ads, emoji: "📺" },
-        { id: "spin", icon: Gift, label: t.spin, emoji: "🎡" },
-        { id: "tasks", icon: CheckSquare, label: lang === "en" ? "Tasks" : "مهام", emoji: "✅" },
-          { id: "friends", icon: Users, label: t.friends_title, emoji: "👥" },
-        { id: "leaderboard", icon: Trophy, label: t.leaderboard, emoji: "🏆" },
-        { id: "withdraw", icon: Wallet, label: t.withdraw, emoji: "💸" },
-        ...(isAdmin ? [{ id: "admin", icon: Shield, label: "إدارة", emoji: "🛡️" }] : []),
-      ];
-
-      const tabAccent: Record<string, string> = {
-        home: "#10B981", ads: "#F59E0B", spin: "#EC4899", tasks: "#6366F1", friends: "#3B82F6", leaderboard: "#F59E0B", withdraw: "#10B981",
-        admin: "#059669"
-      };
-
-      return (
-        <div style={{ minHeight: "100vh", background: "#040f0a", color: "#fff", fontFamily: "'Inter', system-ui, -apple-system, sans-serif", paddingBottom: 88, overflowX: "hidden" }}>
-          {/* Animated orb background */}
-          <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
-            <div className="orb orb-1" />
-            <div className="orb orb-2" />
-            <div className="orb orb-3" />
-          </div>
-
-          <div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "16px 14px 0" }}>
-
-            {/* HOME TAB */}
-            {activeTab === "home" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {/* Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6 }}>
-                  <div>
-                    <p style={{ fontSize: 10, color: "rgba(16,185,129,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>{t.greeting}</p>
-                    <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0, background: "linear-gradient(135deg, #FFD700 0%, #F59E0B 50%, #EF4444 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                      {displayName} ✨
-                    </h1>
-                  </div>
-                  <button onClick={toggleLanguage} style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 24, padding: "8px 14px", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>
-                    {lang === "ar" ? "🇸🇦" : lang === "en" ? "🇬🇧" : "🇷🇺"}
-                  </button>
-                </div>
-
-                {/* Balance Card */}
-                <div style={{ borderRadius: 24, padding: "22px 22px 18px", position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #021a12 0%, #042f1e 50%, #031a0f 100%)", border: "1px solid rgba(16,185,129,0.28)", boxShadow: "0 8px 40px rgba(16,185,129,0.12), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
-                  <div className="shimmer-overlay" />
-                  <div style={{ position: "relative" }}>
-                    <p style={{ fontSize: 9, color: "rgba(52,211,153,0.65)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 10 }}>{t.balance}</p>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
-                      <span style={{ fontSize: 46, fontWeight: 900, lineHeight: 1, background: "linear-gradient(135deg, #FFE44D, #FFB800)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 18px rgba(255,200,0,0.35))" }}>
-                        {safeUser.balance.toLocaleString()}
-                      </span>
-                      <span style={{ fontSize: 14, color: "rgba(255,215,0,0.4)", fontWeight: 700, letterSpacing: "0.05em" }}>{t.points}</span>
-                    </div>
-                    <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)", margin: "14px 0" }} />
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-                      <div>
-                        <p style={{ fontSize: 9, color: "rgba(52,211,153,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>{t.total_earned}</p>
-                        <p style={{ fontSize: 18, fontWeight: 900, color: "#6EE7B7" }}>{safeUser.totalEarned.toLocaleString()}</p>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <p style={{ fontSize: 9, color: "rgba(52,211,153,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>Telegram Stars</p>
-                        <p style={{ fontSize: 18, fontWeight: 900, color: "#FFD700" }}>⭐ {starsEquivalent}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Stats */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {[
-                    { emoji: "📺", label: t.today_ads, value: Math.min(safeUser.todayAds, 50), color: "#F59E0B", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)", tab: "ads" },
-                    { emoji: "🎡", label: t.spins, value: `${safeUser.spinsLeft}/5`, color: "#EC4899", bg: "rgba(236,72,153,0.08)", border: "rgba(236,72,153,0.2)", tab: "spin" },
-                  ].map((s, i) => (
-                    <button key={i} onClick={() => setActiveTab(s.tab)} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", transition: "transform 0.15s", width: "100%" }}>
-                      <span style={{ fontSize: 26 }}>{s.emoji}</span>
-                      <div>
-                        <p style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>{s.label}</p>
-                        <p style={{ fontSize: 22, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Daily Gift */}
-                <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 20, overflow: "hidden" }}>
-                  <div style={{ padding: "11px 16px", borderBottom: "1px solid rgba(16,185,129,0.12)", display: "flex", alignItems: "center", gap: 8, background: "rgba(16,185,129,0.08)" }}>
-                    <span style={{ fontSize: 15 }}>🎁</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "#6EE7B7", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t.daily_gift_title}</span>
-                  </div>
-                  <div style={{ padding: 16, display: "flex", justifyContent: "center" }}>
-                    <DailyGiftBox
-                      telegramId={safeUser.telegramId}
-                      adsgramBlockId={safeUser.adsgramBlockId}
-                      initData={typeof window !== "undefined" && window.Telegram?.WebApp ? window.Telegram.WebApp.initData || "" : ""}
-                      lang={lang}
-                      onClaim={(update) => setUser(prev => prev ? { ...prev, ...update } : prev)}
-                    />
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, overflow: "hidden" }}>
-                  <div style={{ padding: "11px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>⚡ {t.tasks}</span>
-                  </div>
-                  {[
-                    { emoji: "📺", label: t.watch_ad, sub: `+${safeUser.adReward} ${t.points}`, color: "#F59E0B", tab: "ads" },
-                    { emoji: "🎡", label: t.try_luck, sub: t.random_prize, color: "#EC4899", tab: "spin" },
-                    { emoji: "👥", label: t.invite_friend, sub: t.extra_reward, color: "#3B82F6", tab: "friends" },
-                  ].map((a, i, arr) => (
-                    <button key={i} onClick={() => setActiveTab(a.tab)} style={{ width: "100%", padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "transparent", border: "none", cursor: "pointer", color: "#fff", borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontSize: 20, width: 28, textAlign: "center" }}>{a.emoji}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>{a.label}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: a.color, background: `${a.color}18`, borderRadius: 8, padding: "3px 9px" }}>{a.sub}</span>
-                        <ChevronRight size={15} style={{ color: "rgba(255,255,255,0.2)" }} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Activity */}
-                <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, overflow: "hidden", marginBottom: 4 }}>
-                  <div style={{ padding: "11px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: 8 }}>
-                    <History size={14} style={{ color: "rgba(255,255,255,0.35)" }} />
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t.activity_log}</span>
-                  </div>
-                  <div style={{ padding: "12px 14px", maxHeight: 280, overflowY: "auto" }}>
-                    <ActivityLog telegramId={safeUser.telegramId} lang={lang} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ADS TAB */}
-            {activeTab === "ads" && (
-              <div style={{ paddingTop: 6 }}>
-                <div style={{ marginBottom: 18 }}>
-                  <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, color: "#F59E0B" }}>📺 {t.watch_ad_title || t.watch_ad}</h2>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>
-                    {(t.earn_per_ad || "اكسب {reward} نقطة لكل إعلان تشاهده").replace("{reward}", String(safeUser.adReward))}
-                  </p>
-                </div>
-                <WatchAdsSection user={safeUser} lang={lang} onReward={(u) => refreshUser(u)} />
-              </div>
-            )}
-
-            {/* SPIN TAB */}
-            {activeTab === "spin" && (
-              <div style={{ paddingTop: 6 }}>
-                <div style={{ marginBottom: 18 }}>
-                  <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, color: "#EC4899" }}>🎡 {t.spin_title}</h2>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>{t.spin_subtitle}</p>
-                </div>
-                <SpinWheelSection user={safeUser} lang={lang} onReward={(u) => refreshUser(u)} onSwitchToAds={() => setActiveTab("ads")} />
-              </div>
-            )}
-
-            {/* FRIENDS TAB */}
-            {activeTab === "friends" && (
-              <div style={{ paddingTop: 6 }}>
-                <div style={{ marginBottom: 18 }}>
-                  <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, color: "#3B82F6" }}>👥 {t.friends_title}</h2>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>{t.friends_subtitle}</p>
-                </div>
-                <ReferralSection user={safeUser} lang={lang} initData={typeof window !== "undefined" && window.Telegram?.WebApp ? window.Telegram.WebApp.initData || "" : ""} />
-              </div>
-            )}
-
-            {/* WITHDRAW TAB */}
-            {activeTab === "tasks" && (
-                    <TasksSection
-                      user={{ telegramId: safeUser.telegramId, balance: safeUser.balance, initData: typeof window !== "undefined" && window.Telegram?.WebApp ? window.Telegram.WebApp.initData || "" : "" }}
-                      lang={lang}
-                      onReward={(u) => refreshUser(u)}
-                    />
-                  )}
-                  {activeTab === "withdraw" && (
-              <div style={{ paddingTop: 6 }}>
-                <div style={{ marginBottom: 18 }}>
-                  <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, color: "#10B981" }}>💸 {t.withdraw_title}</h2>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>{t.withdraw_subtitle}</p>
-                </div>
-                <WithdrawSection user={safeUser} lang={lang} onSuccess={() => refreshUser()} />
-              </div>
-            )}
-          </div>
-              {/* LEADERBOARD TAB */}
-              {activeTab === "leaderboard" && (
-                <div style={{ paddingTop: 6 }}>
-                  <LeaderboardSection myTelegramId={safeUser.telegramId} lang={lang} />
-                </div>
-              )}
-
-          {/* BOTTOM NAV */}
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100 }}>
-            <div style={{
-              width: "100%",
-              background: "rgba(5,5,15,0.96)",
-              backdropFilter: "blur(30px)",
-              WebkitBackdropFilter: "blur(30px)",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-              padding: "8px 4px 16px",
-              display: "flex",
-              justifyContent: "space-around",
-              boxShadow: "0 -8px 32px rgba(0,0,0,0.7)",
-            }}>
-              {NAV.map(({ id, icon: Icon, label }) => {
-                const active = activeTab === id;
-                const c = tabAccent[id] || "#10B981";
-                return (
-                  <button
-                    key={id}
-                    onClick={() => { if (id === "admin") { window.location.href = "/admin"; return; } setActiveTab(id); }}
-                    style={{
-                      flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
-                      gap: 4, padding: "6px 2px 2px", background: "none", border: "none",
-                      cursor: "pointer", position: "relative", borderRadius: 16,
-                      transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-                      transform: active ? "translateY(-2px)" : "none",
-                    }}
-                  >
-                    {/* Active glow dot */}
-                    {active && (
-                      <div style={{
-                        position: "absolute", top: -1, left: "50%", transform: "translateX(-50%)",
-                        width: 32, height: 3, borderRadius: 3,
-                        background: `linear-gradient(90deg, transparent, ${c}, transparent)`,
-                      }} />
-                    )}
-                    {/* Icon container */}
-                    <div style={{
-                      width: 48, height: 44, borderRadius: 16,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: active
-                        ? `linear-gradient(135deg, ${c}30, ${c}18)`
-                        : "transparent",
-                      border: active ? `1px solid ${c}35` : "1px solid transparent",
-                      boxShadow: active ? `0 4px 20px ${c}30` : "none",
-                      transition: "all 0.25s",
-                    }}>
-                      <Icon
-                        size={24}
-                        strokeWidth={active ? 2.2 : 1.7}
-                        style={{
-                          color: active ? c : "rgba(255,255,255,0.35)",
-                          filter: active ? `drop-shadow(0 0 8px ${c}80)` : "none",
-                          transition: "all 0.25s",
-                        }}
-                      />
-                    </div>
-                    {/* Label */}
-                    <span style={{
-                      fontSize: 9.5, fontWeight: active ? 800 : 500,
-                      color: active ? c : "rgba(255,255,255,0.3)",
-                      letterSpacing: "0.02em", transition: "all 0.25s",
-                      whiteSpace: "nowrap",
-                      textShadow: active ? `0 0 12px ${c}60` : "none",
-                    }}>
-                      {label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
+export default function AdsgramApp() {
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [subscribed, setSubscribed] = useState(false);
+  const [activeTab, setActiveTab] = useState("home");
+  const [lang, setLang] = useState<Language>("ar");
+  const { toast } = useToast();
+  const t = translations[lang];
   
+  const getUserMutation = trpc.telegram.getUser.useMutation();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+      const tgLang = window.Telegram.WebApp.initDataUnsafe?.user?.language_code;
+      if (tgLang === "ru") setLang("ru");
+      else if (tgLang === "en") setLang("en");
+      else setLang("ar");
+    }
+    initializeTelegramApp();
+  }, []);
+
+  const initializeTelegramApp = async () => {
+    try {
+      if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        const initData = tg.initData;
+        const telegramUser = tg.initDataUnsafe?.user;
+
+        if (!telegramUser) {
+          setUser(DEFAULT_DEMO_USER);
+          setSubscribed(true);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const data = await getUserMutation.mutateAsync({
+            telegramId: telegramUser.id,
+            initData: initData || "",
+          });
+
+          if (data.success && data.user) {
+            setUser(data.user as UserData);
+          } else {
+            setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
+          }
+        } catch (e) {
+          console.error("tRPC Error:", e);
+          setUser({ ...DEFAULT_DEMO_USER, telegramId: telegramUser.id });
+        }
+      } else {
+        setUser(DEFAULT_DEMO_USER);
+        setSubscribed(true);
+      }
+    } catch (error) {
+      setUser(DEFAULT_DEMO_USER);
+      setSubscribed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      </div>
+    );
+  }
+
+  const safeUser = user || DEFAULT_DEMO_USER;
+  const starsEquivalent = Math.floor(safeUser.balance / safeUser.starsRate);
+
+  const formatBalance = (val: number) => {
+    return val.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white p-4 font-sans">
+      {!subscribed && safeUser.telegramId && (
+        <SubscriptionCheck
+          telegramId={safeUser.telegramId}
+          onSubscribed={() => setSubscribed(true)}
+          lang={lang}
+        />
+      )}
+      
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex justify-end gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setLang("ar")}
+            className={`text-[10px] h-7 px-2 ${lang === "ar" ? "bg-purple-600 text-white" : "bg-slate-900 text-gray-400"}`}
+          >
+            AR
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setLang("en")}
+            className={`text-[10px] h-7 px-2 ${lang === "en" ? "bg-purple-600 text-white" : "bg-slate-900 text-gray-400"}`}
+          >
+            EN
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setLang("ru")}
+            className={`text-[10px] h-7 px-2 ${lang === "ru" ? "bg-purple-600 text-white" : "bg-slate-900 text-gray-400"}`}
+          >
+            RU
+          </Button>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-black text-yellow-500">{t.title}</h1>
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-slate-800">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-[10px] font-bold uppercase">Online</span>
+          </div>
+        </div>
+
+        <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 border-none shadow-xl">
+          <CardContent className="p-6">
+            <div className="space-y-1 mb-6">
+              <p className="text-[10px] text-indigo-100 font-bold uppercase opacity-70">{t.balance}</p>
+              <div className="text-4xl font-black flex items-baseline gap-2">
+                <span>{formatBalance(safeUser.balance)}</span>
+                <span className="text-sm opacity-50 uppercase">PTS</span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+              <div>
+                <p className="text-[10px] text-indigo-100 font-bold uppercase opacity-70">{t.totalEarned}</p>
+                <p className="text-lg font-black">{formatBalance(safeUser.totalEarned)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-indigo-100 font-bold uppercase opacity-70">النجوم المقابلة</p>
+                <p className="text-lg font-black text-yellow-400">⭐ {starsEquivalent}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
+            <Zap className="h-5 w-5 text-yellow-500" />
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold">{t.todayAds}</p>
+              <p className="text-lg font-black">{safeUser.todayAds}</p>
+            </div>
+          </div>
+          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
+            <Gift className="h-5 w-5 text-purple-500" />
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold">{t.spinsLeft}</p>
+              <p className="text-lg font-black">{safeUser.spinsLeft}/5</p>
+            </div>
+          </div>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <TabsTrigger value="home" className="text-xs font-bold">{t.home}</TabsTrigger>
+            <TabsTrigger value="ads" className="text-xs font-bold">{t.ads}</TabsTrigger>
+            <TabsTrigger value="spin" className="text-xs font-bold">{t.spin}</TabsTrigger>
+            <TabsTrigger value="withdraw" className="text-xs font-bold">{t.withdraw}</TabsTrigger>
+          </TabsList>
+
+          <div className="mt-6">
+            <TabsContent value="home" className="space-y-4 outline-none">
+              <DailyGiftSection user={safeUser} onReward={() => initializeTelegramApp()} lang={lang} />
+              <Card className="bg-slate-900/40 border-slate-800 rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-yellow-500" />
+                    {t.waysToEarn}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-between border-slate-800 hover:bg-slate-800" onClick={() => setActiveTab("ads")}>
+                    <span>{t.watchAds}</span>
+                    <span className="text-yellow-500">+{safeUser.adReward} PTS</span>
+                  </Button>
+                  <Button variant="outline" className="w-full justify-between border-slate-800 hover:bg-slate-800" onClick={() => setActiveTab("spin")}>
+                    <span>{t.dailySpin}</span>
+                    <span className="text-purple-500">جائزة عشوائية</span>
+                  </Button>
+                </CardContent>
+              </Card>
+              <ReferralSection user={safeUser} />
+            </TabsContent>
+
+            <TabsContent value="ads" className="outline-none">
+              <WatchAdsSection user={safeUser} onReward={() => initializeTelegramApp()} lang={lang} />
+            </TabsContent>
+
+            <TabsContent value="spin" className="outline-none">
+              <SpinWheelSection user={safeUser} onReward={() => initializeTelegramApp()} lang={lang} />
+            </TabsContent>
+
+            <TabsContent value="withdraw" className="outline-none">
+              <WithdrawSection user={safeUser} onSuccess={() => initializeTelegramApp()} />
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
+    </div>
+  );
+}

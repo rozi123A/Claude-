@@ -954,3 +954,22 @@ export const appRouter = router({
     }),
 
   });
+    checkSubscription: publicProcedure
+      .input(z.object({ telegramId: z.number() }))
+      .mutation(async ({ input }) => {
+        try {
+          const botToken = ENV.botToken;
+          if (!botToken) return { success: false, isSubscribed: false };
+          const response = await fetch(
+            `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@Earn130&user_id=${input.telegramId}`
+          );
+          const data = await response.json();
+          if (data.ok && data.result) {
+            const isSubscribed = ["member", "administrator", "creator"].includes(data.result.status);
+            return { success: true, isSubscribed };
+          }
+          return { success: false, isSubscribed: false };
+        } catch (error) {
+          return { success: false, isSubscribed: false };
+        }
+      }),
