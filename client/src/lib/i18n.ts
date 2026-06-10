@@ -117,6 +117,10 @@ export type Language = "ar" | "en" | "ru";
       leaderboard_me_badge: "مرتبتك",
       leaderboard_refresh: "تحديث",
       leaderboard: "المتصدرون",
+      // Missing keys
+      open_gift: "افتح هديتك 🎁",
+      referral_count: "الأصدقاء المدعوون",
+      referral_earned: "نقاطك من الإحالات",
     },
     en: {
       welcome: "🎮 Play Now & Earn Points!",
@@ -234,6 +238,10 @@ export type Language = "ar" | "en" | "ru";
       leaderboard_me_badge: "Your rank",
       leaderboard_refresh: "Refresh",
       leaderboard: "Leaders",
+      // Missing keys
+      open_gift: "Open Your Gift 🎁",
+      referral_count: "Friends Invited",
+      referral_earned: "Points from Referrals",
     },
     ru: {
       welcome: "🎮 Играй сейчас и зарабатывай очки!",
@@ -351,6 +359,10 @@ export type Language = "ar" | "en" | "ru";
       leaderboard_me_badge: "Ваш ранг",
       leaderboard_refresh: "Обновить",
       leaderboard: "Рейтинг",
+      // Missing keys
+      open_gift: "Открыть подарок 🎁",
+      referral_count: "Приглашённые друзья",
+      referral_earned: "Очки с рефералов",
     }
   };
   
