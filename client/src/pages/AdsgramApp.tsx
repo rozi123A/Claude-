@@ -90,6 +90,9 @@ import TasksSection from "@/components/adsgram/TasksSection";
       const [errorType, setErrorType] = useState<null | "no_telegram" | "no_user">(null);
       const [activeTab, setActiveTab] = useState("home");
       const [lang, setLang] = useState<Language>("ar");
+    const [channelJoined, setChannelJoined] = useState<boolean>(() => {
+      try { return localStorage.getItem("channel_joined_earn130") === "1"; } catch { return false; }
+    });
     const [displayName, setDisplayName] = useState("");
       const { toast } = useToast();
       const t = translations[lang];
@@ -145,6 +148,80 @@ import TasksSection from "@/components/adsgram/TasksSection";
           }
         } catch {}
       }, []);
+
+      // ── Channel subscription gate ──
+      if (!channelJoined) return (
+        <div style={{
+          minHeight: "100vh",
+          background: "linear-gradient(160deg, #0a0f1e 0%, #0d1a3e 50%, #07100d 100%)",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          gap: 0, padding: "32px 24px", textAlign: "center"
+        }}>
+          {/* Glow orbs */}
+          <div style={{ position: "fixed", top: "10%", left: "50%", transform: "translateX(-50%)", width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+          {/* Telegram icon */}
+          <div style={{
+            width: 88, height: 88, borderRadius: "50%",
+            background: "linear-gradient(135deg, #6366F1 0%, #818CF8 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 44, marginBottom: 28,
+            boxShadow: "0 0 40px rgba(99,102,241,0.45)"
+          }}>✈️</div>
+
+          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: "0 0 12px", lineHeight: 1.3 }}>
+            اشترك في القناة أولاً
+          </h2>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.7, margin: "0 0 32px", maxWidth: 280 }}>
+            يجب الاشتراك في قناتنا الرسمية<br />للوصول إلى التطبيق والحصول على المكافآت
+          </p>
+
+          {/* Subscribe button */}
+          <a
+            href="https://t.me/Earn130"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+                window.Telegram.WebApp.openTelegramLink("https://t.me/Earn130");
+              }
+            }}
+            style={{
+              display: "block", width: "100%", maxWidth: 320,
+              padding: "16px 0", borderRadius: 18,
+              background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
+              color: "#fff", fontWeight: 800, fontSize: 16,
+              textDecoration: "none", marginBottom: 14,
+              boxShadow: "0 4px 24px rgba(99,102,241,0.4)"
+            }}
+          >
+            📢 اشترك في القناة
+          </a>
+
+          {/* Verify button */}
+          <button
+            onClick={() => {
+              try { localStorage.setItem("channel_joined_earn130", "1"); } catch {}
+              setChannelJoined(true);
+            }}
+            style={{
+              width: "100%", maxWidth: 320,
+              padding: "14px 0", borderRadius: 18,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: 14,
+              cursor: "pointer"
+            }}
+          >
+            ✅ تحققت من الاشتراك
+          </button>
+
+          <p style={{ marginTop: 20, fontSize: 10, color: "rgba(255,255,255,0.2)", fontWeight: 600 }}>
+            بعد الاشتراك اضغط "تحققت من الاشتراك"
+          </p>
+        </div>
+      );
 
       if (loading) return (
         <div style={{ minHeight: "100vh", background: "#040f0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20 }}>
