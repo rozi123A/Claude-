@@ -158,7 +158,7 @@ import TasksSection from "@/components/adsgram/TasksSection";
           alignItems: "center", justifyContent: "center",
           gap: 0, padding: "32px 24px", textAlign: "center"
         }}>
-          {/* Glow orbs */}
+          {/* Glow orb */}
           <div style={{ position: "fixed", top: "10%", left: "50%", transform: "translateX(-50%)", width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
 
           {/* Telegram icon */}
@@ -166,38 +166,49 @@ import TasksSection from "@/components/adsgram/TasksSection";
             width: 88, height: 88, borderRadius: "50%",
             background: "linear-gradient(135deg, #6366F1 0%, #818CF8 100%)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 44, marginBottom: 28,
+            fontSize: 44, marginBottom: 24,
             boxShadow: "0 0 40px rgba(99,102,241,0.45)"
           }}>✈️</div>
 
-          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: "0 0 12px", lineHeight: 1.3 }}>
+          <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: "0 0 10px", lineHeight: 1.3 }}>
             اشترك في القناة أولاً
           </h2>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.7, margin: "0 0 32px", maxWidth: 280 }}>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.7, margin: "0 0 20px", maxWidth: 280 }}>
             يجب الاشتراك في قناتنا الرسمية<br />للوصول إلى التطبيق والحصول على المكافآت
           </p>
 
+          {/* Channel name display */}
+          <div style={{
+            background: "rgba(99,102,241,0.15)",
+            border: "1px solid rgba(99,102,241,0.4)",
+            borderRadius: 14, padding: "12px 28px",
+            marginBottom: 24, direction: "ltr"
+          }}>
+            <span style={{ color: "#818CF8", fontWeight: 900, fontSize: 18, letterSpacing: "0.02em" }}>
+              @Earn130
+            </span>
+          </div>
+
           {/* Subscribe button */}
-          <a
-            href="https://t.me/Earn130"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
             onClick={() => {
               if (typeof window !== "undefined" && window.Telegram?.WebApp) {
                 window.Telegram.WebApp.openTelegramLink("https://t.me/Earn130");
+              } else {
+                window.open("https://t.me/Earn130", "_blank");
               }
             }}
             style={{
-              display: "block", width: "100%", maxWidth: 320,
+              width: "100%", maxWidth: 320,
               padding: "16px 0", borderRadius: 18,
               background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
               color: "#fff", fontWeight: 800, fontSize: 16,
-              textDecoration: "none", marginBottom: 14,
+              border: "none", cursor: "pointer", marginBottom: 14,
               boxShadow: "0 4px 24px rgba(99,102,241,0.4)"
             }}
           >
             📢 اشترك في القناة
-          </a>
+          </button>
 
           {/* Verify button */}
           <button
