@@ -16,11 +16,12 @@
   <!-- Monetag SDK — required for all ad formats -->
   <script src="//whephiwums.com/3365859/invoke.js" data-cfasync="false" async></script>
 
-  <!-- In-App Interstitial — تنبثق تلقائياً (يعمل في تلغرام القديم) -->
+  <!-- In-App Interstitial -->
+  <script src="https://alwingulla.com/act/files/tag.min.js?z=8708112" data-cfasync="false" async></script>
   <script>
     window.addEventListener('load', function () {
-      if (typeof show_11127757 === 'function') {
-        show_11127757({
+      if (typeof show_8708112 === 'function') {
+        show_8708112({
           type: 'inApp',
           inAppSettings: {
             frequency: 2,
@@ -31,10 +32,9 @@
           }
         });
       } else {
-        // Retry once after SDK loads
         setTimeout(function () {
-          if (typeof show_11127757 === 'function') {
-            show_11127757({
+          if (typeof show_8708112 === 'function') {
+            show_8708112({
               type: 'inApp',
               inAppSettings: {
                 frequency: 2,
