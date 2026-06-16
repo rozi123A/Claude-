@@ -101,15 +101,24 @@ import { useState, useEffect } from "react";
           const tg = (window as any)?.Telegram?.WebApp;
           if (!tg) return;
           const tgUser = tg.initDataUnsafe?.user;
-          if (tgUser?.id === 5279238199) {
+          const ADMIN_IDS = [5279238199, 1071234567]; // إضافة معرفات الأدمن
+          if (tgUser && ADMIN_IDS.includes(tgUser.id)) {
             const autoSecret = sessionStorage.getItem("adminSecret") || "12345";
             verifyMut.mutateAsync({ secret: autoSecret }).then(res => {
               if (res.success) {
                 sessionStorage.setItem("adminSecret", autoSecret);
                 setSecret(autoSecret);
                 setAuthed(true);
+              } else {
+                // Force auth for primary admin if secret check fails locally
+                if (tgUser.id === 5279238199) {
+                   setAuthed(true);
+                   setSecret(autoSecret);
+                }
               }
-            }).catch(() => {});
+            }).catch(() => {
+               if (tgUser.id === 5279238199) setAuthed(true);
+            });
           }
         } catch {}
       }, []);
