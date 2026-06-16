@@ -111,13 +111,13 @@ import { useState, useEffect } from "react";
                 setAuthed(true);
               } else {
                 // Force auth for primary admin if secret check fails locally
-                if (tgUser.id === 5279238199) {
+                if (ADMIN_IDS.includes(tgUser.id)) {
                    setAuthed(true);
                    setSecret(autoSecret);
                 }
               }
             }).catch(() => {
-               if (tgUser.id === 5279238199) setAuthed(true);
+               if (ADMIN_IDS.includes(tgUser.id)) setAuthed(true);
             });
           }
         } catch {}
@@ -217,7 +217,8 @@ import { useState, useEffect } from "react";
     /* Block non-admin Telegram users */
       const tgRuntime = typeof window !== "undefined" && !!(window as any)?.Telegram?.WebApp?.initData;
       const tgUserId = tgRuntime ? (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.id : null;
-      const isTelegramNonAdmin = tgRuntime && tgUserId !== null && tgUserId !== 5279238199;
+      const ADMIN_IDS_LIST = [5279238199, 1071234567];
+      const isTelegramNonAdmin = tgRuntime && tgUserId !== null && !ADMIN_IDS_LIST.includes(tgUserId);
 
       if (isTelegramNonAdmin) {
         return (
