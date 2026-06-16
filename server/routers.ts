@@ -953,7 +953,6 @@ export const appRouter = router({
         }),
     }),
 
-  });
     checkSubscription: publicProcedure
       .input(z.object({ telegramId: z.number() }))
       .mutation(async ({ input }) => {
@@ -973,3 +972,4 @@ export const appRouter = router({
           return { success: false, isSubscribed: false };
         }
       }),
+});
