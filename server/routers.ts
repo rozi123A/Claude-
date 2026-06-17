@@ -247,8 +247,9 @@ export const appRouter = router({
         const referredCount = stats.count;
         if (referredCount === 0) return { success: true, claimed: 0, points: 0 };
 
-        // Count existing referral transactions for this user
-        const existingTxCount = Math.floor(stats.totalEarned / 100);
+        // Count actual paid referral transactions (reliable count, not estimate)
+        const allTxs = await getTransactions(input.telegramId, 1000);
+        const existingTxCount = allTxs.filter((tx: any) => tx.type === "referral").length;
 
         // How many referrals haven't been paid yet
         const unpaidCount = Math.max(0, referredCount - existingTxCount);
