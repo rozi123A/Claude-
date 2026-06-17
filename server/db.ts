@@ -528,7 +528,7 @@ export async function initDb() {
           id SERIAL PRIMARY KEY,
           name TEXT NOT NULL,
           description TEXT,
-          channel_username VARCHAR(100) NOT NULL DEFAULT '',
+          channel_username VARCHAR(255) NOT NULL DEFAULT '',
           channel_id VARCHAR(100),
           type VARCHAR(20) NOT NULL DEFAULT 'channel',
           points_min INTEGER NOT NULL DEFAULT 1,
