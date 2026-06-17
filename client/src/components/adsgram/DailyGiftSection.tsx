@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 
 interface UserData {
   telegramId: number;
-  initData?: string;
   lastDailyGift?: number | null;
 }
 
@@ -24,7 +23,6 @@ export default function DailyGiftSection({ user, onReward, lang }: DailyGiftSect
   const { toast } = useToast();
 
   const claimMut = trpc.dailyGift.claim.useMutation();
-
   const isAr = lang === "ar";
 
   useEffect(() => {
@@ -35,10 +33,8 @@ export default function DailyGiftSection({ user, onReward, lang }: DailyGiftSect
         setTimeLeft(null);
         return;
       }
-
       const nextClaim = lastGift + 24 * 60 * 60 * 1000;
       const now = Date.now();
-
       if (now >= nextClaim) {
         setCanClaim(true);
         setTimeLeft(null);
@@ -50,7 +46,6 @@ export default function DailyGiftSection({ user, onReward, lang }: DailyGiftSect
         setTimeLeft(`${hours}h ${minutes}m`);
       }
     };
-
     checkCooldown();
     const timer = setInterval(checkCooldown, 60000);
     return () => clearInterval(timer);
@@ -59,12 +54,9 @@ export default function DailyGiftSection({ user, onReward, lang }: DailyGiftSect
   const handleClaim = async () => {
     if (!canClaim || isOpening) return;
     setIsOpening(true);
-
     try {
-      const res = await claimMut.mutateAsync({
-        telegramId: user.telegramId,
-        initData: user.initData ?? "",
-      });
+      const initData = (window as any).Telegram?.WebApp?.initData || "";
+      const res = await claimMut.mutateAsync({ telegramId: user.telegramId, initData });
       if (res.success) {
         toast({
           title: isAr ? "🎁 مبروك!" : "🎁 Congrats!",
@@ -100,7 +92,6 @@ export default function DailyGiftSection({ user, onReward, lang }: DailyGiftSect
             </div>
           )}
         </div>
-
         <div className="text-center mt-2">
           {canClaim ? (
             <p className="text-green-400 font-bold text-sm animate-pulse mb-4">
@@ -112,7 +103,6 @@ export default function DailyGiftSection({ user, onReward, lang }: DailyGiftSect
               <span className="text-purple-300 font-mono">{timeLeft}</span>
             </p>
           )}
-
           <Button
             onClick={handleClaim}
             disabled={!canClaim || isOpening}
@@ -123,10 +113,10 @@ export default function DailyGiftSection({ user, onReward, lang }: DailyGiftSect
             }`}
           >
             {isOpening
-              ? isAr ? "جاري الفتح..." : "Opening..."
+              ? (isAr ? "جاري الفتح..." : "Opening...")
               : canClaim
-              ? isAr ? "استلام 10 نقاط" : "Claim 10 pts"
-              : isAr ? "تم الاستلام" : "Claimed"}
+              ? (isAr ? "استلام 10 نقاط" : "Claim 10 pts")
+              : (isAr ? "تم الاستلام" : "Claimed")}
           </Button>
         </div>
       </CardContent>
