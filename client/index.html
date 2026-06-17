@@ -4,63 +4,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Start Coin✨ - Earn Stars</title>
-  <meta name="description" content="تطبيق Start Coin لكسب نقاط Telegram Stars من خلال مشاهدة الإعلانات والعجلة والإحالات." />
+  <title>Jufo Utility Stars — Earn DGB Crypto</title>
+  <meta name="description" content="Jufo Utility Stars — Telegram Mini App to earn DigiByte (DGB) cryptocurrency by watching ads, spinning the wheel, and completing tasks." />
   <meta name="robots" content="index, follow" />
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-
-
-  <!-- Monetag SDK — required for all ad formats -->
-  <script src="//whephiwums.com/3365859/invoke.js" data-cfasync="false" async></script>
-
-  <!-- In-App Interstitial -->
-  <script src="https://alwingulla.com/act/files/tag.min.js?z=11127757" data-cfasync="false" async></script>
+  <script src='//libtl.com/sdk.js' data-zone='11127757' data-sdk='show_11127757'></script>
   <script>
-    window.addEventListener('load', function () {
-      if (typeof show_11127757 === 'function') {
-        show_11127757({
-          type: 'inApp',
-          inAppSettings: {
-            frequency: 2,
-            capping: 0.1,
-            interval: 30,
-            timeout: 5,
-            everyPage: false
-          }
-        });
-      } else {
-        setTimeout(function () {
-          if (typeof show_11127757 === 'function') {
-            show_11127757({
-              type: 'inApp',
-              inAppSettings: {
-                frequency: 2,
-                capping: 0.1,
-                interval: 30,
-                timeout: 5,
-                everyPage: false
-              }
-            });
-          }
-        }, 3000);
+    (function() {
+      function tryShowAd(n) {
+        if (typeof window['show_11127757'] === 'function') {
+          window['show_11127757']().catch(function(){});
+        } else if (n > 0) {
+          setTimeout(function(){ tryShowAd(n-1); }, 400);
+        }
       }
-    });
+      window.addEventListener('load', function() {
+        setTimeout(function(){ tryShowAd(30); }, 5000);
+        setTimeout(function(){ tryShowAd(30); }, 15000);
+      });
+    })();
   </script>
 </head>
 
-<body>
+<body style="background:#060610;margin:0;padding:0;">
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 
   <!-- Privacy Policy & Terms (hidden, for ad network compliance) -->
-  <div id="legal-pages" style="display:none" aria-hidden="true">
+  <div id="legal-pages" style="display:none">
     <section id="privacy-policy">
-      <h1>Privacy Policy — Start Coin</h1>
+      <h1>Privacy Policy — Jufo Utility Stars</h1>
       <p>Last updated: 2025-01-01</p>
-      <p>Start Coin ("we", "our", "the app") is a Telegram Mini App that lets users earn points by watching ads and completing tasks.</p>
+      <p>Jufo Utility Stars ("we", "our", "the app") is a Telegram Mini App that lets users earn DigiByte (DGB) cryptocurrency by watching ads and completing tasks.</p>
       <h2>Data We Collect</h2>
       <ul>
         <li>Telegram user ID, first name, username (provided by Telegram)</li>
@@ -74,24 +51,24 @@
         <li>To process withdrawal requests</li>
       </ul>
       <h2>Advertising</h2>
-      <p>We use Monetag to display advertisements. Monetag may collect anonymous usage data in accordance with their own privacy policy at monetag.com.</p>
+      <p></p>
       <h2>Contact</h2>
       <p>For questions, contact us via Telegram: @ads_reward123_bot</p>
     </section>
 
     <section id="terms-of-service">
-      <h1>Terms of Service — Start Coin</h1>
-      <p>By using Start Coin you agree to these terms.</p>
+      <h1>Terms of Service — Jufo Utility Stars</h1>
+      <p>By using Jufo Utility Stars you agree to these terms.</p>
       <h2>Earning Points</h2>
       <ul>
         <li>Points are earned by watching advertisements, spinning the wheel, completing tasks, and referring friends.</li>
         <li>You must watch each ad completely to earn points.</li>
-        <li>Maximum 10 ads per day.</li>
+        <li>Maximum 50 ads per day.</li>
       </ul>
       <h2>Withdrawals</h2>
       <ul>
         <li>Minimum withdrawal is 10,000 points.</li>
-        <li>Points are converted to Telegram Stars at the stated rate.</li>
+        <li>Points are converted to DigiByte (DGB) at the rate of 15,000 points = 0.05 DGB.</li>
         <li>Withdrawals are processed manually within 48 hours.</li>
       </ul>
       <h2>Prohibited</h2>
@@ -105,9 +82,9 @@
     </section>
 
     <section id="about">
-      <h1>About Start Coin</h1>
-      <p>Start Coin is a legitimate Telegram Mini App where users earn real Telegram Stars by engaging with advertisements. Our platform connects advertisers with Telegram users in a transparent, rewarding ecosystem.</p>
-      <p>Features: Watch Ads · Spin Wheel · Daily Gift · Tasks · Referrals · Leaderboard · Withdraw Stars</p>
+      <h1>About Jufo Utility Stars</h1>
+      <p>Jufo Utility Stars is a legitimate Telegram Mini App where users earn real DigiByte (DGB) cryptocurrency by engaging with advertisements. Our platform connects advertisers with Telegram users in a transparent, rewarding ecosystem.</p>
+      <p>Features: Watch Ads · Spin Wheel · Daily Gift · Tasks · Referrals · Leaderboard · Withdraw DGB</p>
     </section>
   </div>
 </body>

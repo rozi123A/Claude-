@@ -1,4 +1,3 @@
-CSS SHA: 520fc8f512458769357d4f80625fe0d5972814ba
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -270,4 +269,115 @@ CSS SHA: 520fc8f512458769357d4f80625fe0d5972814ba
   /* Number inputs */
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  /* ========== PREMIUM ICON STYLING ========== */
+
+  /* Icon hover glow effect */
+  .icon-glow {
+    transition: all 0.3s ease;
+  }
+  .icon-glow:hover {
+    filter: drop-shadow(0 0 8px currentColor);
+    transform: scale(1.1);
+  }
+
+  /* Icon container with gradient background */
+  .icon-container {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-foreground) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Floating icon animation */
+  @keyframes iconFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-4px); }
+  }
+  .icon-float {
+    animation: iconFloat 3s ease-in-out infinite;
+  }
+
+  /* Pulse icon animation */
+  @keyframes iconPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.95); }
+  }
+  .icon-pulse {
+    animation: iconPulse 2s ease-in-out infinite;
+  }
+
+  /* Sparkle icon animation */
+  @keyframes sparkleRotate {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.2); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  .icon-sparkle {
+    animation: sparkleRotate 4s linear infinite;
+  }
+
+  /* Icon ring effect */
+  .icon-ring {
+    position: relative;
+  }
+  .icon-ring::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, currentColor 0%, transparent 70%);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s ease;
+  }
+  .icon-ring:hover::after {
+    opacity: 0.3;
+    transform: scale(1.2);
+  }
+
+  /* Icon bounce on click */
+  @keyframes iconBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.9); }
+  }
+  .icon-bounce:active {
+    animation: iconBounce 0.3s ease;
+  }
+
+  /* Gradient icon wrapper */
+  .gradient-icon-wrapper {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    padding: 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+  }
+  .gradient-icon-wrapper:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+
+  /* Premium icon badge */
+  .icon-badge {
+    position: relative;
+  }
+  .icon-badge::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: var(--destructive);
+    border-radius: 50%;
+    animation: badgePulse 2s infinite;
+  }
+  @keyframes badgePulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+  }
   

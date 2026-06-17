@@ -29,12 +29,12 @@ function EmptyHeader({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 const emptyMediaVariants = cva(
-  "flex shrink-0 items-center justify-center mb-2 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "flex shrink-0 items-center justify-center mb-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 transition-transform duration-300",
   {
     variants: {
       variant: {
         default: "bg-transparent",
-        icon: "bg-muted text-foreground flex size-10 shrink-0 items-center justify-center rounded-lg [&_svg:not([class*='size-'])]:size-6",
+        icon: "bg-gradient-to-br from-muted/80 to-muted/60 text-foreground flex size-12 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ring-border/50 [&_svg:not([class*='size-'])]:size-6 hover:scale-105 hover:shadow-md",
       },
     },
     defaultVariants: {

@@ -161,14 +161,14 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import {
-  AlertCircle,
-  CalendarIcon,
+  Warning,
+  CalendarBlank,
   Check,
   Clock,
   Moon,
   Sun,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast as sonnerToast } from "sonner";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
@@ -480,7 +480,7 @@ export default function ComponentsShowcase() {
                           !datePickerDate && "text-muted-foreground"
                         }`}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarBlank className="mr-2 h-4 w-4" />
                         {datePickerDate ? (
                           format(datePickerDate, "PPP HH:mm", { locale: zhCN })
                         ) : (
@@ -554,7 +554,7 @@ export default function ComponentsShowcase() {
                               { value: "remix", label: "Remix" },
                             ].find(fw => fw.value === selectedFramework)?.label
                           : "Select framework..."}
-                        <CalendarIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        <CalendarBlank className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">
@@ -871,7 +871,7 @@ export default function ComponentsShowcase() {
             <h3 className="text-2xl font-semibold">Alerts</h3>
             <div className="space-y-4">
               <Alert>
-                <AlertCircle className="h-4 w-4" />
+                <Warning className="h-4 w-4" />
                 <AlertTitle>Heads up!</AlertTitle>
                 <AlertDescription>
                   You can add components to your app using the cli.

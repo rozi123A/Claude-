@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Gift, Sparkles, Tv2, X } from "lucide-react";
+import { Gift, Sparkle, Television, X, ShoppingCart, Lightning } from "@phosphor-icons/react";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
 import { translations, type Language } from "@/lib/i18n";
@@ -17,7 +17,9 @@ interface SpinWheelSectionProps {
   user: UserData;
   lang: Language;
   onReward: (update?: { balance: number; spinsLeft: number; totalEarned?: number }) => void;
-  onSwitchToAds: () => void;
+  onSwitchToAds?: () => void;
+  onLock?: () => void;
+  onUnlock?: () => void;
 }
 
 const PRIZES = [
@@ -84,22 +86,27 @@ function playWinSound(ctx: AudioContext) {
   });
 }
 
-export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSectionProps) {
+export default function SpinWheelSection({ user, lang, onReward, onLock, onUnlock }: SpinWheelSectionProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const audioCtxRef  = useRef<AudioContext | null>(null);
   const [isSpinning,        setIsSpinning]        = useState(false);
   const [rotation,          setRotation]          = useState(0);
   const [adSpinsUsed,       setAdSpinsUsed]       = useState(0);
   const [showNoSpinsModal,  setShowNoSpinsModal]  = useState(false);
-  const [showAdOverlay,     setShowAdOverlay]     = useState(false);
   const [pendingToken,      setPendingToken]      = useState<string | null>(null);
   const [tokenLoading,      setTokenLoading]      = useState(false);
+  const [showBuyModal,      setShowBuyModal]      = useState(false);
+  const [showAdOverlay,     setShowAdOverlay]     = useState(false);
+  const [buyLoading,        setBuyLoading]        = useState(false);
+  const [starsLoading,      setStarsLoading]      = useState(false);
   const { toast } = useToast();
   const t = translations[lang];
 
-  const spinMutation     = trpc.spin.perform.useMutation();
-  const getTokenMutation = trpc.ads.getToken.useMutation();
-  const claimMutation    = trpc.ads.claim.useMutation();
+  const spinMutation         = trpc.spin.perform.useMutation();
+  const getTokenMutation     = trpc.ads.getToken.useMutation();
+  const claimMutation        = trpc.ads.claim.useMutation();
+  const buySpinsMutation     = trpc.spin.buy.useMutation();
+  const buyWithStarsMutation = trpc.spin.buyWithStars.useMutation();
 
   useEffect(() => { setAdSpinsUsed(getAdSpinsUsed()); }, []);
   useEffect(() => { drawWheel(); }, [rotation]);
@@ -149,7 +156,15 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke();
   }
 
-  // FIX: Create token BEFORE showing overlay so tokenAge ≥ 15s when user claims
+  const handleSpinAdError = (description?: string) => {
+    setShowAdOverlay(false);
+    setPendingToken(null);
+    onUnlock?.();
+    if (description) {
+      toast({ title: t.error, description: description.slice(0, 120), variant: 'destructive' });
+    }
+  };
+
   const handleWatchSpinAdClick = async () => {
     setShowNoSpinsModal(false);
     setTokenLoading(true);
@@ -158,15 +173,21 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
       const tok = await getTokenMutation.mutateAsync({ telegramId: user.telegramId, initData, type: "spin" });
       if (!tok.success || !tok.token) throw new Error(tok.message || "فشل الحصول على التوكن");
       setPendingToken(tok.token);
+      onLock?.();
+      
+      // Show Ad Overlay (Adsgram → Monetag fallback)
       setShowAdOverlay(true);
     } catch (e: any) {
-      toast({ title: "خطأ", description: e?.message || "فشل تحميل الإعلان", variant: "destructive" });
+      setPendingToken(null);
+      onUnlock?.();
+      toast({ title: t.error, description: e?.message || t.ad_load_failed, variant: "destructive" });
     } finally {
       setTokenLoading(false);
     }
   };
 
   const handleAdClaim = async () => {
+    setShowAdOverlay(false);
     if (!pendingToken) return;
     const initData = (window as any).Telegram?.WebApp?.initData || "";
     try {
@@ -177,14 +198,15 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
         const newBal   = cl.balance   !== undefined ? Number(cl.balance)   : user.balance + 100;
         const newSpins = cl.spinsLeft !== undefined ? Number(cl.spinsLeft) : user.spinsLeft + 1;
         onReward({ balance: newBal, spinsLeft: newSpins });
-        toast({ title: "🎡 دورة جاهزة!", description: "اضغط على زر GO في العجلة الآن للعب!" });
+        toast({ title: t.spin_ready, description: t.spin_ready_desc });
       } else {
-        throw new Error(cl.message || "فشل الحصول على الدورة");
+        throw new Error(cl.message || t.spin_failed);
       }
     } catch (e: any) {
       toast({ title: "خطأ", description: e?.message || "فشل", variant: "destructive" });
     } finally {
       setPendingToken(null);
+      onUnlock?.();
     }
   };
 
@@ -202,7 +224,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
       });
       if (!data.success) {
         toast({ title: t.notice, description: data.message || t.spin_failed, variant: "destructive" });
-        setIsSpinning(false); return;
+        setIsSpinning(false); onUnlock?.(); return;
       }
 
       const idx = PRIZES.findIndex(p => p.value === data.prize);
@@ -210,6 +232,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
       const target = rotation + 8 * Math.PI * 2 + (-(idx * segAngle + segAngle / 2) - Math.PI / 2 - rotation % (Math.PI * 2));
       const dur = 4000, t0 = Date.now(), r0 = rotation;
 
+      onLock?.();
       if (actx) playSpinSound(actx, dur / 1000);
 
       const animate = () => {
@@ -223,6 +246,7 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
           const wonSpins   = data.spinsLeft !== undefined ? Number(data.spinsLeft) : Math.max(0, user.spinsLeft - 1);
           onReward({ balance: wonBalance, spinsLeft: wonSpins });
           setIsSpinning(false);
+          onUnlock?.();
           if (Number(wonSpins) === 0) {
             setTimeout(() => setShowNoSpinsModal(true), 1200);
           }
@@ -232,184 +256,320 @@ export default function SpinWheelSection({ user, lang, onReward }: SpinWheelSect
     } catch {
       toast({ title: t.error, description: t.spin_error, variant: "destructive" });
       setIsSpinning(false);
+      onUnlock?.();
     }
   }
 
   const adSpinsLeft = MAX_AD_SPINS - adSpinsUsed;
 
+  // Spin packages
+  const SPIN_PACKAGES = [
+    { qty: 1, price: 500,  label: t.spin_one,           badge: null,                             color: "#6366f1" },
+    { qty: 3, price: 1200, label: t.spin_package_3,     badge: t.spin_save + " 20%",             color: "#8B5CF6" },
+    { qty: 5, price: 1800, label: t.spin_package_5,     badge: t.spin_best,                      color: "#EC4899" },
+  ];
+
+  const handleBuySpins = async (qty: number, price: number) => {
+    if (buyLoading) return;
+    if (user.balance < price) {
+      toast({ title: t.insufficient_balance, description: `${t.need_points} ${price} ${t.points}. ${t.current_balance}: ${user.balance} ${t.points}`, variant: "destructive" });
+      return;
+    }
+    setBuyLoading(true);
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData || "";
+      const res = await buySpinsMutation.mutateAsync({ telegramId: user.telegramId, initData, quantity: qty });
+      if (res.success) {
+        onReward({ balance: Number(res.balance), spinsLeft: Number(res.spinsLeft) });
+        setShowBuyModal(false);
+        setShowNoSpinsModal(false);
+        toast({ title: t.spin_purchased, description: `${t.deducted} ${price} ${t.points} ${t.from_balance}. ${t.play_now}` });
+      } else {
+        throw new Error((res as any).message || "فشلت العملية");
+      }
+    } catch (e: any) {
+      toast({ title: t.error, description: e?.message || t.purchase_failed, variant: "destructive" });
+    } finally {
+      setBuyLoading(false);
+    }
+  };
+
+  const handleBuyWithStars = async (qty: number) => {
+    if (starsLoading) return;
+    setStarsLoading(true);
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData || "";
+      const res = await buyWithStarsMutation.mutateAsync({ telegramId: user.telegramId, initData, quantity: qty });
+      if (!res.success || !res.invoiceLink) throw new Error(res.message || "فشل إنشاء الفاتورة");
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.openInvoice) {
+        tg.openInvoice(res.invoiceLink, (status: string) => {
+          if (status === "paid") {
+            setShowBuyModal(false);
+            setShowNoSpinsModal(false);
+            toast({ title: t.spin_paid, description: t.spin_paid_desc.replace("{qty}", qty.toString()) + "! " + t.restart_app });
+          } else if (status === "cancelled") {
+            toast({ title: t.spin_cancel, description: t.spin_cancel_desc, variant: "destructive" });
+          }
+        });
+      } else {
+        window.open(res.invoiceLink, "_blank");
+        toast({ title: t.stars_payment_link, description: t.open_link_pay });
+      }
+    } catch (e: any) {
+      toast({ title: t.error, description: e?.message || t.invoice_failed, variant: "destructive" });
+    } finally {
+      setStarsLoading(false);
+    }
+  };
+
   return (
     <>
+      {/* Ad Overlay — Adsgram with Monetag fallback */}
       {showAdOverlay && (
         <AdOverlay
+          blockId={user.adsgramBlockId || "33769"}
+          monetagZoneId="11127757"
+          
           seconds={15}
-          rewardLabel="دورة إضافية 🎡"
+          rewardLabel={t.spin_ready_desc}
+          lang={lang}
           onClaim={handleAdClaim}
-          onClose={() => { setShowAdOverlay(false); setPendingToken(null); }}
+          onClose={() => handleSpinAdError()}
         />
       )}
 
-      {/* No Spins Modal */}
-      {showNoSpinsModal && (
+      {/* Buy Spins Modal */}
+      {showBuyModal && (
         <div style={{
-          position: "fixed", inset: 0, zIndex: 999,
-          background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "20px",
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.82)", backdropFilter: "blur(10px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "20px",
         }}>
           <div style={{
-            background: "linear-gradient(145deg, #130826, #0b1240)",
-            border: "1px solid rgba(139,92,246,0.4)",
-            borderRadius: 28, padding: "32px 24px", maxWidth: 360, width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(139,92,246,0.15)",
+            background: "linear-gradient(145deg, #0f0c29, #1a1040)",
+            border: "1px solid rgba(139,92,246,0.5)",
+            borderRadius: 28, padding: "28px 20px", maxWidth: 360, width: "100%",
+            boxShadow: "0 24px 64px rgba(0,0,0,0.7), 0 0 50px rgba(139,92,246,0.2)",
             position: "relative",
           }}>
-            <button
-              onClick={() => setShowNoSpinsModal(false)}
-              style={{ position: "absolute", top: 16, left: 16, background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 10, width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)" }}
-            >
+            <button onClick={() => setShowBuyModal(false)} style={{
+              position: "absolute", top: 14, left: 14,
+              background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 10,
+              width: 32, height: 32, cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)",
+            }}>
               <X size={16} />
             </button>
 
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <div style={{ fontSize: 56, marginBottom: 8 }}>🎡</div>
+            <div style={{ textAlign: "center", marginBottom: 6 }}>
+              <div style={{ fontSize: 48, marginBottom: 4 }}></div>
+              <h3 style={{ fontSize: 20, fontWeight: 900, color: "#fff", margin: 0 }}>{t.spin_buy_title}</h3>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+                {`${t.current_balance}: `} <span style={{ color: "#facc15", fontWeight: 800 }}>{user.balance.toLocaleString()} {t.points}</span>
+              </p>
             </div>
 
-            <h3 style={{ fontSize: 22, fontWeight: 900, color: "#fff", textAlign: "center", marginBottom: 8 }}>
-              انتهت دوراتك اليومية! 😅
-            </h3>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center", marginBottom: 24, lineHeight: 1.6 }}>
-              شاهد إعلاناً قصيراً واحصل على دورة إضافية.<br />
-              يمكنك الحصول على حتى <span style={{ color: "#EC4899", fontWeight: 800 }}>5 دورات مجانية</span> يومياً!
-            </p>
-
-            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "12px 16px", marginBottom: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>إعلانات اليوم</span>
-                <span style={{ fontSize: 11, fontWeight: 900, color: "#EC4899" }}>{adSpinsUsed} / {MAX_AD_SPINS}</span>
-              </div>
-              <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${(adSpinsUsed / MAX_AD_SPINS) * 100}%`, background: "linear-gradient(90deg, #EC4899, #8B5CF6)", borderRadius: 3 }} />
-              </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+              {SPIN_PACKAGES.map((pkg) => (
+                <button
+                  key={pkg.qty}
+                  onClick={() => handleBuySpins(pkg.qty, pkg.price)}
+                  disabled={buyLoading || user.balance < pkg.price}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 18, padding: "14px 16px",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    cursor: user.balance < pkg.price ? "not-allowed" : "pointer",
+                    transition: "all 0.2s",
+                    opacity: user.balance < pkg.price ? 0.5 : 1,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `${pkg.color}20`, display: "flex", alignItems: "center", justifyContent: "center", color: pkg.color }}>
+                      <Lightning size={22} weight="fill" />
+                    </div>
+                    <div style={{ textAlign: "left" }}>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", margin: 0 }}>{pkg.label}</p>
+                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: 0 }}>{pkg.badge || t.spin_no_save}</p>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ fontSize: 15, fontWeight: 900, color: "#facc15", margin: 0 }}>{pkg.price} ○</p>
+                  </div>
+                </button>
+              ))}
             </div>
 
-            <button
-              onClick={handleWatchSpinAdClick}
-              disabled={adSpinsLeft <= 0 || tokenLoading}
-              style={{
-                width: "100%", height: 56, borderRadius: 18, border: "none",
-                background: adSpinsLeft > 0 && !tokenLoading ? "linear-gradient(135deg, #7c3aed, #EC4899)" : "rgba(255,255,255,0.08)",
-                color: "#fff", fontSize: 16, fontWeight: 900,
-                cursor: adSpinsLeft > 0 && !tokenLoading ? "pointer" : "not-allowed",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                boxShadow: adSpinsLeft > 0 && !tokenLoading ? "0 6px 24px rgba(139,92,246,0.45)" : "none",
-              }}
-            >
-              <Tv2 size={20} />
-              {tokenLoading ? "جاري التحميل..." : adSpinsLeft > 0 ? "شاهد إعلاناً واربح دورة 🎡" : "انتهت الإعلانات اليومية"}
-            </button>
-
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 14 }}>
-              متبقي اليوم: {adSpinsLeft} من {MAX_AD_SPINS} إعلانات
-            </p>
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+               <button
+                  onClick={() => handleBuyWithStars(1)}
+                  disabled={starsLoading}
+                  style={{
+                    width: "100%", height: 50, borderRadius: 16, border: "none",
+                    background: "linear-gradient(135deg, #0088cc 0%, #00aaff 100%)",
+                    color: "#fff", fontWeight: 800, fontSize: 14,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                    cursor: "pointer", boxShadow: "0 4px 15px rgba(0,136,204,0.3)"
+                  }}
+                >
+                  {starsLoading ? t.loading : (
+                    <>
+                      <span>★</span>
+                      <span>{t.pay_with_stars}</span>
+                    </>
+                  )}
+                </button>
+            </div>
           </div>
         </div>
       )}
 
-      <Card className="bg-gradient-to-b from-slate-900/80 to-slate-950 border-slate-700/50 shadow-xl overflow-hidden">
-        <CardHeader className="border-b border-slate-800/50 bg-slate-900/30">
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <Gift className="h-5 w-5 text-purple-400" />
-              </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                {t.spin_title}
-              </span>
+      {/* No Spins Modal */}
+      {showNoSpinsModal && !showBuyModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "20px",
+        }}>
+          <div style={{
+            background: "linear-gradient(145deg, #1a1c2c, #0f101a)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 32, padding: "32px 24px", maxWidth: 340, width: "100%",
+            textAlign: "center", boxShadow: "0 32px 64px rgba(0,0,0,0.8)",
+          }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: "50%", background: "rgba(239,68,68,0.1)",
+              display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px",
+              color: "#EF4444",
+            }}>
+              <Television size={40} weight="duotone" />
             </div>
-            <div className="flex items-center gap-1 px-3 py-1 bg-slate-800/50 rounded-full border border-slate-700/50">
-              <Sparkles className="h-3 w-3 text-yellow-400" />
-              <span className="text-xs font-medium text-yellow-400">{t.big_prizes}</span>
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 10 }}>{t.spin_no_spins}</h3>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, marginBottom: 28 }}>
+              {adSpinsLeft > 0 ? t.spin_ad_desc : t.spin_get_free}
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {adSpinsLeft > 0 && (
+                <button
+                  onClick={handleWatchSpinAdClick}
+                  disabled={tokenLoading}
+                  style={{
+                    width: "100%", height: 58, borderRadius: 18, border: "none",
+                    background: "linear-gradient(135deg, #F59E0B, #D97706)",
+                    color: "#fff", fontWeight: 900, fontSize: 16,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                    cursor: "pointer", boxShadow: "0 8px 20px rgba(245,158,11,0.3)",
+                  }}
+                >
+                  {tokenLoading ? (
+                    <div style={{ width: 20, height: 20, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  ) : (
+                    <>
+                      <Television size={20} weight="fill" />
+                      <span>{t.watch_ad_earn_spin}</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              <button
+                onClick={() => { setShowNoSpinsModal(false); setShowBuyModal(true); }}
+                style={{
+                  width: "100%", height: 58, borderRadius: 18, border: "1px solid rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "#fff", fontWeight: 800, fontSize: 15,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                  cursor: "pointer",
+                }}
+              >
+                <ShoppingCart size={20} />
+                <span>{t.spin_buy_more}</span>
+              </button>
+
+              <button
+                onClick={() => setShowNoSpinsModal(false)}
+                style={{
+                  marginTop: 8, background: "none", border: "none", color: "rgba(255,255,255,0.3)",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                {t.spin_cancel}
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      <Card style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 24, overflow: "hidden" }}>
+        <CardHeader style={{ padding: "20px 20px 10px", textAlign: "center" }}>
+          <CardTitle style={{ fontSize: 20, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            <Sparkle size={24} weight="fill" style={{ color: "#FACC15" }} />
+            {t.spin_title}
           </CardTitle>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "4px 0 0" }}>{t.spin_subtitle}</p>
         </CardHeader>
-
-        <CardContent className="pt-8 pb-6 space-y-6">
-          <div className="relative flex justify-center items-center">
-            <div className="absolute w-64 h-64 bg-purple-600/10 rounded-full blur-3xl" />
-            <canvas
-              ref={canvasRef}
-              width={320} height={320}
-              onClick={!isSpinning && Number(user.spinsLeft) > 0 ? handleSpin : undefined}
-              className={`relative z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer transition-transform ${!isSpinning && Number(user.spinsLeft) > 0 ? "hover:scale-105" : ""}`}
-            />
-            {!isSpinning && Number(user.spinsLeft) > 0 && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                <div className="animate-ping absolute h-16 w-16 rounded-full bg-yellow-400/20" />
-              </div>
-            )}
+        <CardContent style={{ padding: "10px 20px 24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ position: "relative", width: 280, height: 280, marginBottom: 24 }}>
+            <canvas ref={canvasRef} width={280} height={280} style={{ width: "100%", height: "100%" }} />
           </div>
 
-          <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-sm text-gray-400">{t.remaining_tries}</span>
-              <span className="text-sm font-bold text-purple-400">{user.spinsLeft} / 5</span>
+          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+              <div style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 14, padding: "8px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+                <Lightning size={16} weight="fill" style={{ color: "#A78BFA" }} />
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#A78BFA" }}>{t.remaining_tries}: {user.spinsLeft}</span>
+              </div>
             </div>
-            <div className="flex gap-2 justify-center">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < user.spinsLeft ? "bg-gradient-to-r from-purple-500 to-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)]" : "bg-slate-800"}`} />
-              ))}
+
+            <button
+              onClick={handleSpin}
+              disabled={isSpinning || Number(user.spinsLeft) <= 0}
+              style={{
+                width: "100%", height: 64, borderRadius: 20, border: "none",
+                background: !isSpinning && Number(user.spinsLeft) > 0
+                  ? "linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)"
+                  : "rgba(255,255,255,0.05)",
+                color: !isSpinning && Number(user.spinsLeft) > 0 ? "#fff" : "rgba(255,255,255,0.2)",
+                fontWeight: 900, fontSize: 17,
+                cursor: !isSpinning && Number(user.spinsLeft) > 0 ? "pointer" : "not-allowed",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+                transition: "all 0.3s",
+                boxShadow: !isSpinning && Number(user.spinsLeft) > 0
+                  ? "0 10px 25px rgba(139,92,246,0.4)"
+                  : "none",
+              }}
+            >
+              {isSpinning ? (
+                <div style={{ width: 22, height: 22, border: "3px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              ) : (
+                <>
+                  <Sparkle size={20} weight="fill" />
+                  <span>{t.spin_btn}</span>
+                </>
+              )}
+            </button>
+
+            <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 4 }}>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>{t.spin_today_ads}</p>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{adSpinsUsed}/5</p>
+              </div>
+              <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.1)", alignSelf: "center" }} />
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>{t.daily_renewal}</p>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>00:00 UTC</p>
+              </div>
             </div>
           </div>
-
-          {Number(user.spinsLeft) > 0 ? (
-            <>
-              <button
-                onClick={handleSpin}
-                disabled={isSpinning}
-                className="w-full h-14 text-lg font-black transition-all duration-300 rounded-xl"
-                style={{
-                  background: "linear-gradient(135deg,#eab308,#ca8a04,#eab308)",
-                  color: "#0f172a",
-                  boxShadow: "0 4px 15px rgba(234,179,8,0.3)",
-                  border: "none", cursor: isSpinning ? "not-allowed" : "pointer",
-                  opacity: isSpinning ? 0.7 : 1,
-                }}
-              >
-                {isSpinning ? t.spinning : t.spin_btn}
-              </button>
-              <p className="text-[10px] text-gray-500 text-center uppercase tracking-widest font-bold">
-                {t.daily_spins_info}
-              </p>
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div className="bg-slate-800/60 border border-purple-700/40 rounded-xl p-4 text-center space-y-1">
-                <p className="text-yellow-400 font-bold text-sm">{t.no_spins_left}</p>
-                <p className="text-gray-400 text-xs">{t.watch_ad_for_spin_desc}</p>
-                {Number(adSpinsLeft) > 0 && (
-                  <p className="text-purple-400 text-xs font-bold">
-                    {adSpinsLeft}/{MAX_AD_SPINS} {lang === "ar" ? "إعلان متبقي اليوم" : lang === "ru" ? "реклама осталась" : "ads left today"}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={handleWatchSpinAdClick}
-                disabled={adSpinsLeft <= 0 || tokenLoading}
-                className="w-full h-14 text-base font-black rounded-xl flex items-center justify-center gap-2 transition-all"
-                style={{
-                  background: adSpinsLeft > 0 && !tokenLoading ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "rgba(255,255,255,0.08)",
-                  color: "#fff",
-                  boxShadow: adSpinsLeft > 0 && !tokenLoading ? "0 4px 20px rgba(139,92,246,0.4)" : "none",
-                  border: "none", cursor: adSpinsLeft > 0 && !tokenLoading ? "pointer" : "not-allowed",
-                }}
-              >
-                <Tv2 className="h-5 w-5" />
-                {tokenLoading ? "جاري التحميل..." : adSpinsLeft > 0 ? t.watch_ad_earn_spin : "انتهت الإعلانات اليومية"}
-              </button>
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </>
   );
 }

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Loader2, Send, User, Sparkles } from "lucide-react";
+import { CircleNotch, PaperPlaneTilt, User, Sparkle } from "@phosphor-icons/react";
 import { useState, useEffect, useRef } from "react";
 import { Streamdown } from "streamdown";
 
@@ -90,7 +90,7 @@ export type AIChatBoxProps = {
  *     }
  *   });
  *
- *   const handleSend = (content: string) => {
+ *   const handlePaperPlaneTilt = (content: string) => {
  *     const newMessages = [...messages, { role: "user", content }];
  *     setMessages(newMessages);
  *     chatMutation.mutate({ messages: newMessages });
@@ -99,7 +99,7 @@ export type AIChatBoxProps = {
  *   return (
  *     <AIChatBox
  *       messages={messages}
- *       onSendMessage={handleSend}
+ *       onSendMessage={handlePaperPlaneTilt}
  *       isLoading={chatMutation.isPending}
  *       suggestedPrompts={[
  *         "Explain quantum computing",
@@ -201,9 +201,12 @@ export function AIChatBox({
         {displayMessages.length === 0 ? (
           <div className="flex h-full flex-col p-4">
             <div className="flex flex-1 flex-col items-center justify-center gap-6 text-muted-foreground">
-              <div className="flex flex-col items-center gap-3">
-                <Sparkles className="size-12 opacity-20" />
-                <p className="text-sm">{emptyStateMessage}</p>
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <Sparkle size={48} weight="fill" className="size-14 opacity-10" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-xl" />
+                </div>
+                <p className="text-sm font-medium">{emptyStateMessage}</p>
               </div>
 
               {suggestedPrompts && suggestedPrompts.length > 0 && (
@@ -247,8 +250,8 @@ export function AIChatBox({
                     }
                   >
                     {message.role === "assistant" && (
-                      <div className="size-8 shrink-0 mt-1 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Sparkles className="size-4 text-primary" />
+                      <div className="size-9 shrink-0 mt-1 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm ring-1 ring-primary/10">
+                        <Sparkle size={48} weight="fill" className="size-4 text-primary drop-shadow-sm" />
                       </div>
                     )}
 
@@ -272,8 +275,8 @@ export function AIChatBox({
                     </div>
 
                     {message.role === "user" && (
-                      <div className="size-8 shrink-0 mt-1 rounded-full bg-secondary flex items-center justify-center">
-                        <User className="size-4 text-secondary-foreground" />
+                      <div className="size-9 shrink-0 mt-1 rounded-full bg-gradient-to-br from-secondary/80 to-secondary/60 flex items-center justify-center shadow-sm">
+                        <User size={18} weight="fill" className="text-secondary-foreground drop-shadow-sm" />
                       </div>
                     )}
                   </div>
@@ -289,11 +292,14 @@ export function AIChatBox({
                       : undefined
                   }
                 >
-                  <div className="size-8 shrink-0 mt-1 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="size-4 text-primary" />
+                  <div className="size-9 shrink-0 mt-1 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm ring-1 ring-primary/10">
+                    <Sparkle size={48} weight="fill" className="size-4 text-primary animate-pulse" />
                   </div>
-                  <div className="rounded-lg bg-muted px-4 py-2.5">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  <div className="rounded-xl bg-muted/80 backdrop-blur-sm px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <CircleNotch className="size-4 animate-spin text-primary" />
+                      <span className="text-xs text-muted-foreground">Thinking...</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -321,12 +327,12 @@ export function AIChatBox({
           type="submit"
           size="icon"
           disabled={!input.trim() || isLoading}
-          className="shrink-0 h-[38px] w-[38px]"
+          className="shrink-0 h-[38px] w-[38px] bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:hover:shadow-md"
         >
           {isLoading ? (
-            <Loader2 className="size-4 animate-spin" />
+            <CircleNotch className="size-4 animate-spin" />
           ) : (
-            <Send className="size-4" />
+            <PaperPlaneTilt className="size-4 drop-shadow-sm" />
           )}
         </Button>
       </form>

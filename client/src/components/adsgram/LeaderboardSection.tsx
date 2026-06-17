@@ -69,8 +69,8 @@ export default function LeaderboardSection({ myTelegramId, lang }: LeaderboardSe
   const top3 = rows.slice(0, 3);
   const rest  = rows.slice(3);
   const myRow = rows.find(r => r.telegramId === myTelegramId);
-  const pts   = t.leaderboard_pts || "نقطة";
-  const you   = t.leaderboard_you || "أنت";
+  const pts   = t.leaderboard_pts;
+  const you   = t.leaderboard_you;
 
   if (loading) return (
     <div style={{ padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
@@ -84,7 +84,7 @@ export default function LeaderboardSection({ myTelegramId, lang }: LeaderboardSe
   /* ── Podium card ── */
   function PodiumCard({ u, idx }: { u: LeaderboardUser; idx: number }) {
     const size = idx === 0 ? 46 : 38;
-    const medals = ["🥇","🥈","🥉"];
+    const medals = ["①","②","③"];
     return (
       <div style={{ flex: idx === 0 ? 1.2 : 1,
         background: PODIUM_BG[idx], borderRadius: idx === 0 ? 20 : 18,
@@ -110,12 +110,12 @@ export default function LeaderboardSection({ myTelegramId, lang }: LeaderboardSe
     <div style={{ paddingBottom: 20 }}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ fontSize: 36, marginBottom: 6 }}>🏆</div>
+        <div style={{ fontSize: 36, marginBottom: 6 }}></div>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: -0.5 }}>
-          {t.leaderboard_title || "المتصدرون"}
+          {t.leaderboard_title}
         </h2>
         <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-          {t.leaderboard_sub || "أفضل 20 مستخدماً بإجمالي الأرباح"}
+          {t.leaderboard_sub}
         </p>
       </div>
 
@@ -140,7 +140,7 @@ export default function LeaderboardSection({ myTelegramId, lang }: LeaderboardSe
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{myRow.totalEarned.toLocaleString()} {pts}</div>
           </div>
           <div style={{ fontSize: 11, color: "rgba(139,92,246,0.8)", background: "rgba(139,92,246,0.15)", borderRadius: 8, padding: "3px 8px" }}>
-            {t.leaderboard_me_badge || "مرتبتك"}
+            {t.leaderboard_me_badge}
           </div>
         </div>
       )}
@@ -177,7 +177,7 @@ export default function LeaderboardSection({ myTelegramId, lang }: LeaderboardSe
       <button onClick={refresh} style={{ width: "100%", marginTop: 20, padding: "12px",
         background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
         borderRadius: 14, color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-        🔄 {t.leaderboard_refresh || "تحديث"}
+         {t.leaderboard_refresh}
       </button>
     </div>
   );

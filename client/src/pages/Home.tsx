@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import { getLoginUrl } from "@/const";
 import { Streamdown } from 'streamdown';
 
@@ -20,7 +20,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <main>
         {/* Example: lucide-react for icons */}
-        <Loader2 className="animate-spin" />
+        <CircleNotch className="animate-spin" />
         Example Page
         {/* Example: Streamdown for markdown rendering */}
         <Streamdown>Any **markdown** content</Streamdown>

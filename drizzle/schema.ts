@@ -33,6 +33,20 @@ export const telegramUsers = pgTable("telegram_users", {
   referredBy: bigint("referred_by", { mode: "number" }),
   referralCode: varchar("referral_code", { length: 32 }).unique(),
   isBanned: boolean("is_banned").default(false).notNull(),
+  country: varchar("country", { length: 100 }),
+  lastRemindedAt: timestamp("last_reminded_at"),
+  // Withdrawal wallet addresses
+  tonWallet: varchar("ton_wallet", { length: 100 }),
+  usdtWallet: varchar("usdt_wallet", { length: 100 }),
+  lastSeenAt: timestamp("last_seen_at"),
+  cheatStrikes: integer("cheat_strikes").default(0).notNull(),
+  banReason: text("ban_reason"),
+  lastIp: varchar("last_ip", { length: 100 }),
+  deviceInfo: text("device_info"),
+  // Streak & Badges
+  dailyStreak: integer("daily_streak").default(0).notNull(),
+  lastLoginDate: varchar("last_login_date", { length: 10 }),
+  badges: text("badges"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -57,8 +71,16 @@ export const withdrawals = pgTable("withdrawals", {
   telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
   amount: bigint("amount", { mode: "number" }).notNull(),
   stars: integer("stars").notNull(),
-  method: varchar("method", { length: 50 }).default("telegram_stars"),
+  method: varchar("method", { length: 50 }).default("telegram_stars").notNull(),
   status: text("status").default("pending").notNull(),
+  // For TON withdrawals
+  tonTxHash: varchar("ton_tx_hash", { length: 100 }),
+  tonAmount: varchar("ton_amount", { length: 50 }),
+  // For USDT withdrawals
+  usdtTxHash: varchar("usdt_tx_hash", { length: 200 }),
+  usdtAmount: varchar("usdt_amount", { length: 50 }),
+  // User wallet address used for this withdrawal
+  userWallet: varchar("user_wallet", { length: 100 }),
   processedAt: timestamp("processed_at"),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -117,4 +139,27 @@ export type InsertSetting = typeof settings.$inferInsert;
 
   export type UserTask = typeof userTasks.$inferSelect;
   export type InsertUserTask = typeof userTasks.$inferInsert;
-  
+
+export const redeemCodes = pgTable("redeem_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  reward: integer("reward").notNull(),
+  maxUses: integer("max_uses").notNull().default(100),
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: timestamp("expires_at").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type RedeemCode = typeof redeemCodes.$inferSelect;
+export type InsertRedeemCode = typeof redeemCodes.$inferInsert;
+
+export const redeemCodeUses = pgTable("redeem_code_uses", {
+  id: serial("id").primaryKey(),
+  codeId: integer("code_id").notNull(),
+  telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
+  redeemedAt: timestamp("redeemed_at").defaultNow().notNull(),
+});
+
+export type RedeemCodeUse = typeof redeemCodeUses.$inferSelect;
+export type InsertRedeemCodeUse = typeof redeemCodeUses.$inferInsert;

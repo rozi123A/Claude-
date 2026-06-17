@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+  import { translations } from "@/lib/i18n";
   import { trpc } from "@/lib/trpc";
   import { useToast } from "@/hooks/use-toast";
 
@@ -9,6 +10,7 @@ import { useState, useEffect } from "react";
     const { toast } = useToast();
     const [claiming, setClaiming] = useState<number | null>(null);
     const isAr = lang !== "en";
+    const t = translations[lang as keyof typeof translations] || translations["ar"];
 
     const { data, refetch, isLoading } = trpc.tasks.list.useQuery(
       { telegramId: user.telegramId, initData: user.initData },
@@ -27,9 +29,9 @@ import { useState, useEffect } from "react";
           onSuccess: (res) => {
             if (res.deducted > 0) {
               toast({
-                title: isAr ? "⚠️ تم خصم نقاط" : "⚠️ Points Deducted",
+                title: isAr ? " تم خصم نقاط" : " Points Deducted",
                 description: isAr
-                  ? `غادرت ${res.left?.join(", ")} — خُصم منك ${res.deducted} نقطة`
+                  ? t.task_left_group.replace("{groups}", res.left?.join(", ") || "").replace("{deducted}", res.deducted?.toString() || "")
                   : `Left ${res.left?.join(", ")} — ${res.deducted} pts deducted`,
                 variant: "destructive",
               });
@@ -49,7 +51,7 @@ import { useState, useEffect } from "react";
           onSuccess: (res) => {
             setClaiming(null);
             if (res.success) {
-              toast({ title: isAr ? "🎉 مبروك!" : "🎉 Congrats!", description: res.message });
+              toast({ title: isAr ? " مبروك!" : " Congrats!", description: res.message });
               onReward({ balance: user.balance + (res.points ?? 0) });
               refetch();
             } else {
@@ -77,7 +79,7 @@ import { useState, useEffect } from "react";
       <div style={{ padding: "16px", maxWidth: 480, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+          <div style={{ fontSize: 40, marginBottom: 8 }}></div>
           <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: 0 }}>
             {isAr ? "المهام" : "Tasks"}
           </h2>
@@ -117,7 +119,7 @@ import { useState, useEffect } from "react";
                   background: task.type === "bot" ? "rgba(99,102,241,0.2)" : "rgba(59,130,246,0.2)",
                   display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
                 }}>
-                  {task.type === "bot" ? "🤖" : "📢"}
+                  {task.type === "bot" ? "◆" : ""}
                 </div>
 
                 {/* Info */}
@@ -133,7 +135,7 @@ import { useState, useEffect } from "react";
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {task.completed ? (
                       <span style={{ color: "#10B981", fontSize: 12, fontWeight: 600 }}>
-                        ✅ +{task.pointsEarned} {isAr ? "نقطة" : "pts"}
+                         {isAr ? (t.task_points_earned).replace("{points}", task.pointsEarned.toString()) : `+${task.pointsEarned} pts`}
                       </span>
                     ) : (
                       <span style={{
@@ -142,7 +144,7 @@ import { useState, useEffect } from "react";
                       }}>
                         {task.pointsMin === task.pointsMax
                           ? `+${task.pointsMin}`
-                          : `+${task.pointsMin}-${task.pointsMax}`} {isAr ? "نقطة" : "pts"}
+                          : `+${task.pointsMin}-${task.pointsMax}`} {isAr ? (t.task_points_range).replace("{min}", task.pointsMin.toString()).replace("{max}", task.pointsMax.toString()) : "pts"}
                       </span>
                     )}
                   </div>
@@ -180,8 +182,8 @@ import { useState, useEffect } from "react";
           background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
           borderRadius: 12, fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center",
         }}>
-          ⚠️ {isAr
-            ? "إذا غادرت القناة ستُخصم نقاطك تلقائياً"
+           {isAr
+            ? (t.task_leave_channel_warning)
             : "Leaving the channel will deduct your points automatically"}
         </div>
       </div>

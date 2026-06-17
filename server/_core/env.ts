@@ -8,11 +8,7 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   botToken: process.env.BOT_TOKEN ?? "",
-  adsgramBlockId: (() => {
-    const raw = process.env.ADSGRAM_BLOCK_ID ?? "";
-    const cleaned = raw.replace(/[^0-9]/g, "");
-    if (cleaned.length >= 4) return cleaned;
-    return "";
-  })(),
+  monetagZoneId: process.env.MONETAG_ZONE_ID ?? "11043107",
+  monetagScriptUrl: process.env.MONETAG_SCRIPT_URL ?? "https://n6wxm.com/vignette.min.js",
   adminTelegramId: process.env.ADMIN_TELEGRAM_ID ? Number(process.env.ADMIN_TELEGRAM_ID) : null,
 };

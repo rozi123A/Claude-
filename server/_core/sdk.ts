@@ -30,12 +30,11 @@ const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserI
 
 class OAuthService {
   constructor(private client: ReturnType<typeof axios.create>) {
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.warn(
-        "[OAuth] WARNING: OAUTH_SERVER_URL is not configured! OAuth features will be disabled."
-      );
+    if (ENV.oAuthServerUrl) {
+      console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
     }
+    // OAuth features disabled when OAUTH_SERVER_URL is not configured
+    // This is expected for Telegram WebApp-only apps
   }
 
   private decodeState(state: string): string {
@@ -209,7 +208,8 @@ class SDKServer {
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
     if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
+      // Silent fail for missing cookies — this is expected for Telegram WebApp users
+      // Only log when debugging is enabled
       return null;
     }
 

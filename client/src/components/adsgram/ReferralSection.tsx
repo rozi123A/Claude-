@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Share2, Copy, Check, Users, TrendingUp, Gift } from "lucide-react";
+import { ShareNetwork, Copy, Check, Users, TrendUp, Gift } from "@phosphor-icons/react";
 import { useToast } from "@/hooks/use-toast";
 import { translations, type Language } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
@@ -12,11 +12,12 @@ export default function ReferralSection({ user, lang, initData }: ReferralSectio
   const [claiming, setClaiming] = useState(false);
   const { toast } = useToast();
   const t = translations[lang];
-  const referralLink = `https://t.me/ads_reward123_bot/rewardzone?startapp=${user.telegramId}`;
+  const botUsername = import.meta.env.VITE_BOT_USERNAME || "EarnStar123Bot";
+  const referralLink = `https://t.me/${botUsername}?start=ref_${user.telegramId}`;
 
   const { data: stats, refetch } = trpc.telegram.getReferralStats.useQuery(
-    { telegramId: user.telegramId },
-    { refetchInterval: 30000 }
+    { telegramId: user.telegramId, initData: initData },
+    { refetchInterval: 30000, enabled: !!initData }
   );
 
   const claimMutation = trpc.telegram.claimReferral.useMutation();
@@ -29,7 +30,7 @@ export default function ReferralSection({ user, lang, initData }: ReferralSectio
   };
 
   const handleShare = () => {
-    const text = `🎮 انضم معي في لعبة الأرباح! اربح نقاط وحوّلها لـ Telegram Stars⭐\n\n${referralLink}`;
+    const text = ` انضم معي في لعبة الأرباح! اربح نقاط وحوّلها لـ Telegram Stars\n\n${referralLink}`;
     if (navigator.share) navigator.share({ title: "Start Coin✨", text, url: referralLink });
     else { navigator.clipboard.writeText(text); toast({ title: t.copied }); }
   };
@@ -40,14 +41,14 @@ export default function ReferralSection({ user, lang, initData }: ReferralSectio
       const res = await claimMutation.mutateAsync({ telegramId: user.telegramId, initData });
       if (res.claimed > 0) {
         toast({
-          title: "🎉 تم استلام النقاط!",
-          description: `ربحت ${res.points} نقطة من ${res.claimed} إحالة لم تُحتسب`,
+          title: " تم استلام النقاط!",
+          description: (t.referral_earned_from || "ربحت {points} نقطة من {count} إحالة لم تُحتسب").replace("{points}", res.points.toString()).replace("{count}", res.claimed.toString()),
         });
         refetch();
       } else {
         toast({
           title: "لا يوجد نقاط معلقة",
-          description: "جميع نقاط الإحالة تم احتسابها مسبقاً",
+          description: t.referral_already_claimed || "جميع نقاط الإحالة تم احتسابها مسبقاً",
           variant: "destructive",
         });
       }
@@ -64,7 +65,7 @@ export default function ReferralSection({ user, lang, initData }: ReferralSectio
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {[
           { icon: <Users size={22} />, color: "#3B82F6", bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.2)", label: t.referral_count || "الأصدقاء", value: stats?.count ?? 0 },
-          { icon: <TrendingUp size={22} />, color: "#FFD700", bg: "rgba(255,215,0,0.08)", border: "rgba(255,215,0,0.2)", label: t.referral_earned || "نقاطك من الإحالة", value: (stats?.totalEarned ?? 0).toLocaleString() },
+          { icon: <TrendUp size={22} />, color: "#FFD700", bg: "rgba(255,215,0,0.08)", border: "rgba(255,215,0,0.2)", label: t.referral_earned || "نقاطك من الإحالة", value: (stats?.totalEarned ?? 0).toLocaleString() },
         ].map((s, i) => (
           <div key={i} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 20, padding: 20, textAlign: "center" }}>
             <div style={{ color: s.color, marginBottom: 8, display: "flex", justifyContent: "center" }}>{s.icon}</div>
@@ -90,15 +91,15 @@ export default function ReferralSection({ user, lang, initData }: ReferralSectio
         }}
       >
         <Gift size={20} />
-        {claiming ? "جاري التحقق..." : "استلم نقاط الإحالة المعلقة"}
+        {claiming ? (t.redeem_loading || "جاري التحقق...") : (t.claim_referral || "استلم نقاط الإحالة المعلقة")}
       </button>
 
       {/* How it works */}
       <div style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 20, padding: 18 }}>
-        <p style={{ fontSize: 11, fontWeight: 800, color: "#A78BFA", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>🎯 {t.rewards || "كيف تربح؟"}</p>
+        <p style={{ fontSize: 11, fontWeight: 800, color: "#A78BFA", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}> {t.rewards || "كيف تربح؟"}</p>
         {[
-          { icon: "💰", text: t.friend_join || "نقاط فورية عند تسجيل صديقك" },
-          { icon: "🔄", text: t.friend_earnings || "مكافأة إضافية من إعلانات صديقك" },
+          { icon: "", text: t.friend_join || "نقاط فورية عند تسجيل صديقك" },
+          { icon: "", text: t.friend_earnings || "مكافأة إضافية من إعلانات صديقك" },
         ].map((r, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: i < 1 ? 10 : 0 }}>
             <span style={{ fontSize: 20, flexShrink: 0 }}>{r.icon}</span>
@@ -122,7 +123,7 @@ export default function ReferralSection({ user, lang, initData }: ReferralSectio
           {copied ? t.copied || "تم النسخ!" : t.copy || "نسخ"}
         </button>
         <button onClick={handleShare} style={{ height: 54, borderRadius: 18, border: "none", background: "linear-gradient(135deg, #3B82F6, #2563EB)", color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 20px rgba(59,130,246,0.35)" }}>
-          <Share2 size={18} />
+          <ShareNetwork size={18} />
           {t.share || "مشاركة"}
         </button>
       </div>
