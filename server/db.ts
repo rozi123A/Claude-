@@ -588,7 +588,6 @@ export async function initDb() {
     }
 
     // ── Tasks ──────────────────────────────────────────────────────────────
-    import { tasks, userTasks, Task, InsertTask, UserTask } from "../drizzle/schema";
 
   export async function getTasks(): Promise<Task[]> {
     const db = await getDb();
