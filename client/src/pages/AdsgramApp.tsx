@@ -11,7 +11,7 @@ import WithdrawSection from "@/components/adsgram/WithdrawSection";
 import ReferralSection from "@/components/adsgram/ReferralSection";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc";
-import { translations, Language } from "@/lib/translations";
+import { translations, type Language } from "@/lib/i18n";
 
 interface UserData {
   telegramId: number;
