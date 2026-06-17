@@ -101,7 +101,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockI
       )}
 
       <div className="flex flex-col items-center gap-3">
-        {/* 3D Gift Box */}
         <div
           onClick={handleBoxClick}
           onMouseEnter={() => setIsHovered(true)}
@@ -128,7 +127,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockI
               : "rotateX(10deg) rotateY(-10deg)",
             transition: isOpening ? "transform 0.7s cubic-bezier(0.68,-0.55,0.27,1.55)" : "transform 0.3s ease",
           }}>
-            {/* Box body */}
             <div style={{
               position: "absolute", width: 84, height: 84, left: 23, top: 32,
               background: canClaim ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "linear-gradient(135deg,#374151,#1f2937)",
@@ -143,7 +141,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockI
                 top: 0, left: "calc(50% - 4.5px)", borderRadius: 3,
               }} />
             </div>
-            {/* Box lid */}
             <div style={{
               position: "absolute", width: 92, height: 24, left: 19, top: isOpening ? 2 : 22,
               background: canClaim ? "linear-gradient(135deg,#9333ea,#6d28d9)" : "linear-gradient(135deg,#4b5563,#374151)",
@@ -153,7 +150,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockI
               transition: "top 0.4s ease",
               display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible",
             }}>
-              {/* Bow */}
               {canClaim && (
                 <div style={{ position: "absolute", top: -14, display: "flex", gap: 4, alignItems: "center" }}>
                   <div style={{ width: 20, height: 16, borderRadius: "50% 50% 50% 0", background: "linear-gradient(135deg,#fbbf24,#f59e0b)", transform: "rotate(-20deg)" }} />
@@ -163,7 +159,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockI
               )}
             </div>
 
-            {/* Stars */}
             {canClaim && (
               <>
                 {[{ top: 5, left: 8, size: 10, delay: "0s" }, { top: 20, left: 95, size: 8, delay: "0.3s" }, { top: 60, left: 3, size: 6, delay: "0.6s" }, { top: 85, left: 90, size: 10, delay: "0.9s" }].map((s, i) => (
@@ -174,7 +169,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockI
           </div>
         </div>
 
-        {/* Reward flash */}
         {showReward && (
           <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <div style={{ background: "rgba(0,0,0,0.85)", borderRadius: 28, padding: "28px 40px", textAlign: "center", border: "2px solid rgba(250,204,21,0.5)", boxShadow: "0 0 60px rgba(250,204,21,0.3)", animation: "rewardPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both" }}>
@@ -185,7 +179,6 @@ export default function DailyGiftBox({ telegramId, initData, lang, adsgramBlockI
           </div>
         )}
 
-        {/* Timer */}
         <div style={{ textAlign: "center" }}>
           {canClaim ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
