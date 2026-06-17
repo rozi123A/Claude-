@@ -92,7 +92,7 @@ import { useState, useEffect } from "react";
 
     const verifyMut = trpc.admin.verify.useMutation();
       const broadcastMut = trpc.admin.broadcast.useMutation();
-      const updateWithdrawMut = trpc.admin.adminUpdate.useMutation();
+      const updateWithdrawMut = trpc.withdraw.adminUpdate.useMutation();
 
       // Auto-auth when opened from Telegram as admin
       useEffect(() => {
