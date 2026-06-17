@@ -46,7 +46,7 @@ export default function SubscriptionCheck({
   const [checking, setChecking] = useState(true);
   const t = translations[lang];
 
-  const checkSubscriptionMutation = trpc.telegram.checkSubscription.useMutation();
+  const checkSubscriptionMutation = trpc.checkSubscription.useMutation();
 
   useEffect(() => {
     const checkSubscription = async () => {
