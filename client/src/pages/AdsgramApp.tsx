@@ -240,7 +240,7 @@ export default function AdsgramApp() {
                   </Button>
                 </CardContent>
               </Card>
-              <ReferralSection user={safeUser} />
+              <ReferralSection user={safeUser} lang={lang} initData={(window as any).Telegram?.WebApp?.initData || ""} />
             </TabsContent>
 
             <TabsContent value="ads" className="outline-none">
@@ -252,7 +252,7 @@ export default function AdsgramApp() {
             </TabsContent>
 
             <TabsContent value="withdraw" className="outline-none">
-              <WithdrawSection user={safeUser} onSuccess={() => initializeTelegramApp()} />
+              <WithdrawSection user={safeUser} lang={lang} onSuccess={() => initializeTelegramApp()} />
             </TabsContent>
           </div>
         </Tabs>
